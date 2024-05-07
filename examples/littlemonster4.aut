@@ -1,0 +1,36 @@
+BUECHI
+# RABIN SIZE: 257
+# RABIN TRANSITIONS: 1028
+# STATES
+4
+# ALPHABET
+4
+# TRANSITIONS
+18
+# BEGIN TRANSITIONS
+0  0  0
+0  0  3
+0  1  0
+0  2  0
+0  3  0
+1  0  1
+1  1  1
+1  1  3
+1  2  1
+1  3  1
+2  0  2
+2  1  2
+2  2  2
+2  2  3
+2  3  2
+3  0  0
+3  1  1
+3  2  2
+# END TRANSITIONS
+# INITIAL
+1000
+# 4
+# FINAL
+1000
+# 4
+# BUECHI EOF

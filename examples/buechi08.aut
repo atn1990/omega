@@ -1,0 +1,24 @@
+BUECHI
+# rabin size: 2
+# rabin transitions: 4
+# STATES
+3
+# ALPHABET
+2
+# TRANSITIONS
+6
+# BEGIN TRANSITIONS
+0  0  1
+0  1  2
+1  1  1
+1  1  2
+2  0  1
+2  1  2
+# END TRANSITIONS
+# INITIAL
+001
+# 1
+# FINAL
+100
+# 3
+# BUECHI EOF

@@ -1,0 +1,191 @@
+2012/08/05 Adrian Trejo <atrejo@andrew.cmu.edu> omega-5.0
+	Migration to C++11. Significant style changes. Introduction of range-based
+	for loop, auto keyword, fixed-width integer types. Better documentation.
+
+	* automata.hpp:
+	- moved safra_node and safra_tree definitions to safra.hpp
+	- added field to automaton class, modified order of arguments in constructor
+	- added dbg_printf macro to simplify conditional logging
+	- deleted copy assignment operator for lvalue and rvalue references in
+		automaton
+
+	* buchi.cpp:
+	- use emplace_back() to directly construct objects inside STL containers
+
+	* rabin.cpp:
+	- simplified clean_pairs() and minimize()
+	- added rabin::init() function to aid buchi::determinize()
+
+	* safra.cpp:
+	- modified safra_node::horizontal_merge() to pass kill set to children
+		instead of creating a new one
+
+	* safra.hpp:
+	- new file containing safra_node and safra_tree class definitions
+	- deleted copy assignment operator for lvalue and rvalue references in
+		safra_tree and safra_node
+
+
+2012/05/30 Adrian Trejo <atrejo@andrew.cmu.edu> ω-automata-4.2
+	* buchi.cpp:
+	- fixed bugs in ECA construction
+	- modified product construction to specify initial states directly
+	- added k-cycle machine construction
+	- added safra's determinization algorithm as a member function
+
+	* driver.cpp:
+	- moved safra's determinization algorithm to within the buchi class
+
+
+2012/04/22 Adrian Trejo <atrejo@andrew.cmu.edu> ω-automata-4.1
+	* buchi.cpp:
+	- added generation of de Bruijn automata for ECA as well as the one step
+		verifying automaton
+
+	* driver.cpp:
+	- added option to generate ECA automata
+
+
+2012/04/13 Adrian Trejo <atrejo@andrew.cmu.edu> ω-automata-4.0
+	Licensed project under simplified BSD (2-clause) license and added notice
+	to all project files.
+
+	* automata.hpp:
+	- renamed buchi.hpp to automata.hpp
+	- changed project name to ω-automata since it is actually a suite of tools
+		that works on several types of ω-automata
+
+	* buchi.cpp:
+	- forked off rabin class functions and now includes only automaton and buchi
+		class functions
+	- automaton buchi print functions support output to file
+	- added intersection of Büchi automata
+
+	* driver.cpp:
+	- added option to output product automaton to aut file format
+
+	* rabin.cpp:
+	- implementation of rabin class functions
+
+
+2012/03/26 Adrian Trejo <atrejo@andrew.cmu.edu> buchi-3.6
+	* buchi.cpp:
+	- fixed a bug in clean_pairs that deleted a rabin pair incorrectly
+	- changed signatures of functions so that objects passed by reference are
+		const, otherwise they're pointers
+	- started writing intersection function that produces the (accessible part
+		of) the product construction of two Büchi automata
+
+	* buchi.hpp:
+	- renamed safra.h to buchi.hpp consistent with renaming of project typedef
+		modifications
+
+	* driver.cpp:
+	- variable name and type changes
+	- changed debugging print statements
+
+	* safra.cpp:
+	- variable name and type changes
+
+
+2012/03/11 Adrian Trejo <atrejo@andrew.cmu.edu> safra-3.5
+	* buchi.cpp:
+	- initial version, holds all functions that manipulate the graph of the
+		automaton
+	- added minimize function that computes the behavioral equivalence relation
+		on the states of the Rabin automata
+	- changed variable names and function arguments to exisiting functions
+
+	* driver.cpp:
+	- moved debugging printing to safra_tree functions
+	- moved Rabin pair clean up and test_uv functions to new buchi.cpp file
+	- modified Safra's algorithm to include the empty tree in the set of states
+		as an absorbing state
+
+	* safra.cpp:
+	- created unmark, update, and create methods within safra_tree class and
+		these now print debugging information
+	- moved operator== within the safra_node and safra_tree classes
+
+	* safra.h:
+	- added global declarations for functions in buchi.cpp
+	- modified safra_tree class to contain unmark, update, and create methods
+	- changed definition of create method in safra_node and safra_tree to take an
+		unsigned int as input
+	- moved operator== within the safra_node and safra_tree classes
+	- changed hash_value for safra_tree to check that the root isn't NULL
+	- changed edge_list selector in Graph from hash_setS to listS since duplicate
+		edges with different names aren't treated as different
+	- changed size_t types to unsigned int and changed order of function
+		arguments for buchi.cpp functions
+
+
+2012/02/29 Adrian Trejo <atrejo@andrew.cmu.edu> safra-3.1
+	* driver.cpp:
+	- added Rabin pair clean up in driver program, as well as the option for the
+		command line
+
+
+2012/02/28 Adrian Trejo <atrejo@andrew.cmu.edu> safra-3.0
+	* safra.h:
+	- added typedef for adjacency_list graph used in driver program
+
+	* driver.cpp:
+	- modified verbose handling to set an integer level
+	- added construction of transition graph using the Boost Graph Library
+	- added an interactive mode that allows users to test inputs of the form
+	- uv^w where u is a transient initial segment and v is repeated infinitely
+		often
+	- added a scripting option that allows inputs to be specified in a file
+
+
+2012/02/03 Adrian Trejo <atrejo@andrew.cmu.edu> safra-2.1
+	* driver.cpp:
+	- added quiet output option for easier handling of output
+
+
+2012/01/20 Adrian Trejo <atrejo@andrew.cmu.edu> safra-2.0
+	* driver.cpp:
+	- modified most print statements for debugging
+
+	* safra.cpp:
+	- fixed an error in the operator== for the safra_node class, which is used by
+		the unordered_set data structure to determine equality
+	- fixed an error in the horizontal merge code where the kill set passed down
+		to the child was re-initialized to the empty set, where instead the
+		parent should pass down the kill set it was given
+	- modified most print statements for debugging, specifically print_tree so
+		siblings are printed first, then children
+
+
+2011/12/30 Adrian Trejo <atrejo@andrew.cmu.edu> safra-1.2
+	* safra.cpp:
+	- moved implementation of hash_value functions to safra.h so they could be
+		declared inline
+
+	* safra.h:
+	- introduced new style changes according to Google's C++ style guide
+	- moved the hash_value definitions to this file so they could be inlined
+	- changed safra_tree constructor to be explicit and to only perform simple
+		initialization of member variables, all other initialization should be
+		performed by the separate init() function
+	- constructor now has a default argument
+
+
+2011/12/24 Adrian Trejo <atrejo@andrew.cmu.edu> safra-1.1
+	* driver.cpp:
+	- added command-line option parsing using Boost's program_options library
+	- added verbosity option from command line
+
+
+2011/12/19 Adrian Trejo <atrejo@andrew.cmu.edu> safra-1.0
+	* driver.cpp:
+	- initial version, implements user interface functions and actually runs the
+		algorithm implemented in safra.cpp
+
+	* safra.cpp:
+	- initial version, implements core functions of Safra's algorithm
+
+	* safra.h:
+	- initial version, contains class and function declarations as well as header
+		header files used by driver.cpp and safra.cpp

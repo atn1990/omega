@@ -1,0 +1,9 @@
+* configure.sh script
+* testing of first-order logic formula automaton determinization
+* modify testing to accept different alphabets
+* clean-up initial automata (removal of useless final states)
+* if F = Q, then run rabin-scott instead
+* Rabin -> Müller
+* Müller -> Rabin
+* Rabin -> Büchi
+* delete useless states from a Büchi automaton
