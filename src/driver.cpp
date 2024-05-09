@@ -1,8 +1,5 @@
-/**
-  * <driver.cpp>
-  *   Facilities for reading automata from files and processing command-line
-  *   options.
- **/
+// <driver.cpp>
+//   Facilities for reading automata from files and processing command-line options.
 
 #include "BuchiAutomaton.h"
 #include "RabinAutomaton.h"
@@ -40,9 +37,7 @@ using omega::RabinAutomaton;
 using omega::RabinTransitionMap;
 using omega::TransitionMap;
 
-/**
-  * Read a "u:v" pair from infile (may be stdin) and parse the input.
- **/
+// Read a "u:v" pair from infile (may be stdin) and parse the input.
 bool ReadUV(std::istream& file,
             const uint32_t alphabet,
             std::string& U,
@@ -65,22 +60,17 @@ bool ReadUV(std::istream& file,
 }
 
 
-/**
-  * Output a classifcation of the ECA from an input trace file.
- **/
+// Output a classifcation of the ECA from an input trace file.
 void classify(const std::string& filename) {
   // maps a trace to the rules having that trace
   std::unordered_map<std::string, std::list<uint8_t>> map;
 
   // sort traces according to the lowest numbered rule in its class
-  /*
-  auto cmp =
-    [&](const std::string &tr1, const std::string &tr2) {
-      return map.find(tr1)->second.front() < map.find(tr2)->second.front();
-    };
-
-  decltype(cmp)
-  */
+  // auto cmp =
+  //   [&](const std::string &tr1, const std::string &tr2) {
+  //     return map.find(tr1)->second.front() < map.find(tr2)->second.front();
+  //   };
+  // decltype(cmp)
 
   // maps a size of a class to a set of traces of that class size
   std::map<uint8_t, std::set<std::string>> class_map;
@@ -98,7 +88,7 @@ void classify(const std::string& filename) {
       continue;
     }
 
-    //std::istringstream stream(str);
+    // std::istringstream stream(str);
     const char *ptr = str.c_str();
     char *endptr = nullptr;
 
@@ -126,7 +116,7 @@ void classify(const std::string& filename) {
       // auto [itr, added] = map.emplace(str, std::list<uint8_t>{});
     }
 
-    (void) itr->second.push_back(rule);
+    itr->second.push_back(rule);
   }
 
   printf("\n\n");
@@ -139,7 +129,7 @@ void classify(const std::string& filename) {
       BOOST_ASSERT(added);
     }
 
-    (void) itr->second.insert(trace.first);
+    itr->second.insert(trace.first);
   }
 
   // the map stores keys in ascending order, so traverse the class_map in
@@ -161,9 +151,7 @@ void classify(const std::string& filename) {
   file.close();
 }
 
-/**
-  * Convert description of a Büchi automaton from a file.
- **/
+// Convert description of a Büchi automaton from a file.
 std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, TransitionMap& map) {
   std::ifstream file(filename);
   if (file.fail()) {
@@ -193,7 +181,7 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
       std::getline(file, str);
 
       // optimization: use uint8_t to represent transition symbols on edges
-      assert(alphabet <= UINT8_MAX);
+      assert(alphabet <= UINT8_MAX+1);
     } else if (str == "# TRANSITIONS") {
       file >> transitions;
       std::getline(file, str);
@@ -202,7 +190,7 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
 
       dbg(GENERAL, printf("# TRANSITIONS\n"));
 
-      //std::getline(file, str);
+      // std::getline(file, str);
       while (std::getline(file, str) && str != "# END TRANSITIONS") {
         // ignore empty lines
         if (str.empty()) {
@@ -277,9 +265,7 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
   return B;
 }
 
-/**
-  * Read two Büchi automata from a file and construct the product automaton.
- **/
+// Read two Büchi automata from a file and construct the product automaton.
 void Intersection(const std::vector<std::string> &input) {
   TransitionMap map_A, map_B;
 
@@ -287,14 +273,12 @@ void Intersection(const std::vector<std::string> &input) {
   auto B = ReadBuchi(input.back(), map_B);
   auto output = Intersection(*A, *B);
 
-  if (verbose != QUIET) {
+  if (verbose > QUIET) {
     output->Print();
   }
 }
 
-/**
-  * Read two Büchi automata from a file and construct the union automaton.
- **/
+// Read two Büchi automata from a file and construct the union automaton.
 void DisjointUnion(const std::vector<std::string> &input) {
   TransitionMap map_A, map_B;
 
@@ -302,15 +286,15 @@ void DisjointUnion(const std::vector<std::string> &input) {
   auto B = ReadBuchi(input.back(), map_B);
   auto output = DisjointUnion(*A, *B);
 
-  if (verbose != QUIET) {
+  if (verbose > QUIET) {
     output->Print();
   }
 }
 
 void print_help(const char *name) {
-  printf("Omega Automata Version 6.0 2018/31/30\n");
-  printf("Copyright (c) 2011-2018, ");
-  printf("Adrian Trejo Nuñez (atrejo@andrew.cmu.edu)\n\n");
+  printf("Omega Automata Version 7.0 2024/05/07\n");
+  printf("Copyright (c) 2011-2024, ");
+  printf("Adrian Trejo Nuñez (atrejo90@gmail.com)\n\n");
   printf("usage: %s [options] file\n", name);
 }
 
@@ -350,7 +334,7 @@ int main(int argc, char *argv[]) {
     ("dfa",
      opt::value<int>(),
      "Construct Minimal DeBruijn Automaton")
-    ("tabulate,t",
+    ("tabulate",
      "Output Classification Table of Elementary Cellular Automaton")
     ("k",
      opt::value<int>()->default_value(1),

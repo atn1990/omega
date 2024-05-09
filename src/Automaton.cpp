@@ -23,9 +23,7 @@ void Automaton::Resize() {
   num_edges = boost::num_edges(graph);
 }
 
-/**
-  * Pretty printing of automata.
- **/
+// Pretty printing of automata.
 void Automaton::Print(void) const {
   // num_vertices = boost::num_vertices(graph);
   // num_edges = boost::num_edges(graph);
@@ -57,7 +55,7 @@ void Automaton::Print(void) const {
   auto label = boost::get(boost::edge_name, graph);
   auto state = boost::get(boost::vertex_name, graph);
 
-  for (auto i = 0UL; i < num_vertices; i++) {
+  for (auto i = 0U; i < num_vertices; i++) {
     auto u = boost::vertex(i, graph);
 
     dbg(OUTFILE, printf(fmt_vertex, i));

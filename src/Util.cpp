@@ -12,12 +12,12 @@ size_t num_threads = 1;
  **/
 namespace omega {
 
-void print_state(int_type s, std::ostream& os) {
-  if (s == NONE) {
+void print_state(NodeType s, std::ostream& os) {
+  if (s == NodeType::None) {
     os << "NONE";
-  } else if (s == INITIAL) {
+  } else if (s == NodeType::Initial) {
     os << "INITIAL";
-  } else if (s == FINAL) {
+  } else if (s == NodeType::Final) {
     os << "FINAL";
   } else {
     os << "BOTH";

@@ -53,7 +53,7 @@ using TransitionMap = std::unordered_multimap<int_pair, int_type>;
 // VertexProperty:  property<vertex_name_t, uint8_t>
 // EdgeProperty:    property<edge_name_t, uint8_t>
 
-using VertexProp = boost::property<boost::vertex_name_t, uint8_t>;
+using VertexProp = boost::property<boost::vertex_name_t, NodeType>;
 using EdgeProp = boost::property<boost::edge_name_t, uint8_t>;
 using graph_t =
   boost::adjacency_list<boost::listS, boost::vecS, boost::bidirectionalS,

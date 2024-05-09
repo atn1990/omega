@@ -6,8 +6,8 @@ CFLAGS = -Wall -Wextra
 CPPFLAGS = -DDEBUG_BUILD
 CXX = clang++
 CXXFLAGS = --std=c++17 -Wall -Wextra \
-					 -Ofast -I. -isystem /usr/local/include \
-					 -Wno-unused-variable -Wno-unused-parameter
+					 -I. -isystem /usr/local/include \
+					 -Wno-unused-variable -Wno-unused-parameter -g
 
 					 # -Wthread-safety \
 					 # -Wfor-loop-analysis \

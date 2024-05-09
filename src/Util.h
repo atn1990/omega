@@ -127,10 +127,10 @@ enum class OutputType : uint8_t {
   Debug,
 };
 
-#define NONE    0
-#define INITIAL 1
-#define FINAL   2
-#define BOTH    3
+// #define NONE    0
+// #define INITIAL 1
+// #define FINAL   2
+// #define BOTH    3
 
 enum class NodeType : uint8_t {
   None,
@@ -149,7 +149,8 @@ enum class FinalType : uint8_t {
 
 using int_type = uint64_t;
 
-void print_state(int_type s, std::ostream& os = std::cout);
+void print_state(NodeType s, std::ostream& os = std::cout);
+// void print_state(int_type s, std::ostream& os = std::cout);
 void print_binary(int_type n, int_type k, std::ostream& os = std::cout);
 
 } // namespace omega

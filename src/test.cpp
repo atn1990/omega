@@ -146,3 +146,8 @@ BOOST_AUTO_TEST_CASE(SurjectiveTest) {
 BOOST_AUTO_TEST_CASE(InDegreeTest) {
   BOOST_TEST(omega::InDegree(110, 2) == false);
 }
+
+BOOST_AUTO_TEST_CASE(FixedPointTest) {
+  omega::FixedPoint(0, {});
+  omega::FixedPoint(255, {});
+}
