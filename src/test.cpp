@@ -147,7 +147,14 @@ BOOST_AUTO_TEST_CASE(InDegreeTest) {
   BOOST_TEST(omega::InDegree(110, 2) == false);
 }
 
-BOOST_AUTO_TEST_CASE(FixedPointTest) {
+BOOST_AUTO_TEST_CASE(BaseTest) {
   omega::FixedPoint(0, {});
   omega::FixedPoint(255, {});
+  BOOST_TEST(omega::Injective(0) == false);
+  BOOST_TEST(omega::Injective(255) == false);
+  BOOST_TEST(omega::Surjective(0) == false);
+  BOOST_TEST(omega::Surjective(255) == false);
+  BOOST_TEST(omega::Cycle(0, 2) == false);
+  BOOST_TEST(omega::Cycle(255, 2) == false);
+  BOOST_TEST(omega::Nilpotent(0, 1) == true);
 }

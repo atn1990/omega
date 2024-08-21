@@ -708,12 +708,15 @@ std::unique_ptr<BuchiAutomaton> RightShift(uint32_t k, int_pair pair, bool parti
   return M;
 }
 
-bool RightShift(uint8_t rule, uint8_t k, const std::vector<std::string>& p) {
+bool RightShift(uint32_t rule, uint32_t k, const std::vector<std::string>& p) {
+  BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
+  BOOST_ASSERT_MSG(k >= 1, "Parameter k must be at least 1");
+
   GlobalMapOpts opts;
   opts.full = false;
   auto M = GlobalMap(rule, k+1, {0, 1}, opts);
 
-  for (auto i = 1UL; i < k; i++) {
+  for (auto i = 1U; i < k; i++) {
     auto N = GlobalMap(rule, k+1, {i, i+1}, opts);
     M = Intersection(*M, *N);
   }
@@ -721,19 +724,23 @@ bool RightShift(uint8_t rule, uint8_t k, const std::vector<std::string>& p) {
   auto N = RightShift(k+1, {0, k});
   M = Intersection(*M, *N);
 
-  printf("%d  ", !M->Empty());
+  // printf("%d  ", !M->Empty());
 
-  for (const auto& s : p) {
-    dbg(GENERAL, printf("# x != %s\n", s.c_str()));
-    N = Pattern(k+1, 0, s);
+  // for (const auto& s : p) {
+  //   dbg(GENERAL, printf("# x != %s\n", s.c_str()));
+  //   N = Pattern(k+1, 0, s);
 
-    dbg(GENERAL, printf("# [x -> y] && x != %s\n", s.c_str()));
-    M = Intersection(*M, *N);
+  //   dbg(GENERAL, printf("# [x -> y] && x != %s\n", s.c_str()));
+  //   M = Intersection(*M, *N);
 
-    printf("%d  ", !M->Empty());
+  //   printf("%d  ", !M->Empty());
+  // }
+
+  auto result = !M->Empty();
+  if (verbose > GENERAL) {
+    std::cout << "RightShift(" << rule << ", " << k << "): " << std::boolalpha << result << std::endl;
   }
-
-  return !M->Empty();
+  return result;
 }
 
 // Construct a Büchi automaton to check if an ECA has a fixed-point.
@@ -785,17 +792,15 @@ void FixedPoint(uint8_t rule, const std::vector<std::string>& p) {
   }
 }
 
-/**
-  * Construct a Büchi automaton to check if an ECA has a k-cycle.
-  *
-  * A one-way infinite elementary cellular automaton has a k-cycle if there
-  * exists a configuration that evolves to itself after k applications of the
-  * global map.
-  *
-  * Furthermore, the cycle must be proper, i.e., not a d-cycle where d is a
-  * divisor of k.
- **/
-void Cycle(uint8_t rule, uint32_t k) {
+// Construct a Büchi automaton to check if an ECA has a k-cycle.
+//
+// A one-way infinite elementary cellular automaton has a k-cycle if there exists a configuration that evolves to itself after k applications of the global map.
+//
+// Furthermore, the cycle must be proper, i.e., not a d-cycle where d is a divisor of k.
+bool Cycle(uint32_t rule, uint32_t k) {
+  BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
+  BOOST_ASSERT_MSG(k >= 2, "Parameter k must be at least 2");
+
   GlobalMapOpts opts;
   opts.full = false;
 
@@ -806,34 +811,35 @@ void Cycle(uint8_t rule, uint32_t k) {
   dbg(GENERAL, printf("# x0 -> x1\n"));
   auto M = GlobalMap(rule, k, {0, 1}, opts);
 
-  std::unique_ptr<BuchiAutomaton> N;
-  for (auto i = 1UL; i < k; i++) {
-    dbg(GENERAL, printf("# x%zd -> x%zd\n", i, (i + 1) % k));
-    N = GlobalMap(rule, k, {i, (i + 1) % k}, opts);
+  for (auto i = 1U; i < k; i++) {
+    dbg(GENERAL, printf("# x%u -> x%u\n", i, (i+1)%k));
+    auto N = GlobalMap(rule, k, {i, (i+1)%k}, opts);
 
-    dbg(GENERAL, printf("# x0 -> x%zd\n", (i + 1) % k));
+    dbg(GENERAL, printf("# x0 -> x%u\n", (i+1)%k));
     M = Intersection(*M, *N);
   }
 
   // make sure cycle is a proper k-cycle
-  for (auto i = 1UL; i < k; i++) {
+  for (auto i = 1U; i < k; i++) {
     if ((k % i) == 0) {
-      dbg(GENERAL, printf("# x0 != x%zd\n", i));
+      dbg(GENERAL, printf("# x0 != x%u\n", i));
       M = Inequality(*M, {0, i});
     }
   }
 
-  printf("%d  ", !M->Empty());
+  auto result = !M->Empty();
+  if (verbose > GENERAL) {
+    std::cout << "Cycle(" << rule << ", " << k << "): " << std::boolalpha << result << std::endl;
+  }
+  return result;
 }
 
-/**
-  * Construct a Büchi automaton to check if an ECA has a k-predecessor.
-  *
-  * A one-way infinite elementary cellular automaton has a k-predecessor if and
-  * only if there exist k distinct configurations x_1, ..., x_k evolving to a
-  * single configuration y after one application of the global map.
- **/
-void Predecessor(uint8_t rule, uint32_t k, const std::vector<std::string> &p) {
+// Construct a Büchi automaton to check if an ECA has a k-predecessor.
+//
+// A one-way infinite elementary cellular automaton has a k-predecessor if and
+// only if there exist k distinct configurations x_1, ..., x_k evolving to a
+// single configuration y after one application of the global map.
+void Predecessor(uint8_t rule, uint32_t k, const std::vector<std::string>& p) {
   dbg(GENERAL, printf("# x0 -> y\n"));
   auto M = GlobalMap(rule, k+1, {0, k});
 
@@ -867,29 +873,47 @@ void Predecessor(uint8_t rule, uint32_t k, const std::vector<std::string> &p) {
   }
 }
 
-void Nilpotent(uint8_t rule, uint8_t k) {
+bool Nilpotent(uint32_t rule, uint32_t k) {
+  BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
+  BOOST_ASSERT_MSG(k > 0, "Parameter k must be at least 1");
+
   GlobalMapOpts opts;
   opts.full = false;
 
   // construct x_1 -> x_2
   // for i = {2, ..., k+1}, construct x_i -> x_{i+1} and x_1 -> x_{i+1}
   // at the end, the machine is x_1 -> x_{k+1}
-  dbg(GENERAL, printf("# x%u -> x%u\n", k, k+1));
-  auto M = GlobalMap(rule, k+2, {k, k+1}, opts);
+  // dbg(GENERAL, printf("# x%u -> x%u\n", k, k+1));
+  // auto M = GlobalMap(rule, k+2, {k, k+1}, opts);
 
-  // make sure that x_k is a fixed point
-  dbg(GENERAL, printf("# [x%u -> x%u] && [x%u == x%u]\n", k, k+1, k, k+1));
-  Equality(*M, {k, k+1});
+  // // make sure that x_k is a fixed point
+  // dbg(GENERAL, printf("# [x%u -> x%u] && [x%u == x%u]\n", k, k+1, k, k+1));
+  // Equality(*M, {k, k+1});
 
-  for (auto i = 0U; i < k; i++) {
+  // for (auto i = 0U; i < k; i++) {
+  //   dbg(GENERAL, printf("# x%u -> x%u\n", i, i+1));
+  //   auto N = GlobalMap(rule, k+2, {i, i+1}, opts);
+
+  //   dbg(GENERAL, printf("# x0 -> x%u\n", i+1));
+  //   M = Intersection(*M, *N);
+  // }
+
+  dbg(GENERAL, printf("# x0 -> x1\n"));
+  auto M = GlobalMap(rule, k+1, {0, 1}, opts);
+
+  for (auto i = 1U; i < k; i++) {
     dbg(GENERAL, printf("# x%u -> x%u\n", i, i+1));
-    auto N = GlobalMap(rule, k+2, {i, i+1}, opts);
+    auto N = GlobalMap(rule, k+1, {i, i+1}, opts);
 
     dbg(GENERAL, printf("# x0 -> x%u\n", i+1));
     M = Intersection(*M, *N);
   }
 
-  for (auto i = 0U; i < k+1; i++) {
+  // make sure that x_k is a fixed point
+  dbg(GENERAL, printf("# [x0 -> x%u] && [x%u == x%u]\n", k, k-1, k));
+  Equality(*M, {k-1, k});
+
+  for (auto i = 0U; i < k; i++) {
     M->ProjectLabel();
   }
 
@@ -907,12 +931,15 @@ void Nilpotent(uint8_t rule, uint8_t k) {
   }
 
   R->Clean();
-  R->Minimize();
-  R->Clean();
+  // R->Minimize();
+  // R->Clean();
 
-  printf("%d  ", R->Universal());
+  auto result = R->Universal();
+  if (verbose > GENERAL) {
+    std::cout << "Nilpotent(" << rule << ", " << k << "): " << std::boolalpha << result << std::endl;
+  }
+  return result;
 }
-
 
 // Construct a Büchi automaton to check if an ECA has in-degree k.
 //
@@ -928,7 +955,10 @@ void Nilpotent(uint8_t rule, uint8_t k) {
 // \exists x_1, ..., x_k, y, \not\exists u
 // [(x_1 -/> y) || ... || (x_k -/> y) || (x_1 == x_2) || ... || (x_{k-1} == x_k)
 //   || ((u -/> y) && (u != x_1) && ... && (u != x_k))]
-bool InDegree(uint8_t rule, uint32_t k) {
+bool InDegree(uint32_t rule, uint32_t k) {
+  BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
+  BOOST_ASSERT_MSG(k > 0, "Parameter k must be at least 1");
+
   // Track  Symbol
   // 0      y
   // 1      x_1
@@ -947,16 +977,12 @@ bool InDegree(uint8_t rule, uint32_t k) {
     M = Inequality(*M, {i, k+1});
   }
 
-  // opts.full = true;
-  // opts.negated = true;
-  std::vector<std::unique_ptr<BuchiAutomaton>> ineq(k);
   for (auto i = 1U; i <= k; i++) {
     dbg(GENERAL, printf("# x%u -/> y\n", i));
-    ineq[i-1] = GlobalMap(rule, k+2, {i, 0}, opts);
-  }
-  for (auto i = 1U; i <= k; i++) {
+    auto N = GlobalMap(rule, k+2, {i, 0}, opts);
+
     dbg(GENERAL, printf("# [u -/> y] || (x%u -/> y)\n", i));
-    M = DisjointUnion(*M, *ineq[i-1]);
+    M = DisjointUnion(*M, *N);
   }
 
   // for (auto i = 1UL; i <= k; i++) {
@@ -989,23 +1015,20 @@ bool InDegree(uint8_t rule, uint32_t k) {
   R->Clean();
   R->Minimize();
 
-  // printf("%d  ", !R->Universal());
-
-  bool indeg = !R->Universal();
+  bool result = !R->Universal();
   if (verbose > GENERAL) {
-    std::cout << "InDegree(" << rule << ", " << k << "): " << std::boolalpha << indeg << std::endl;
+    std::cout << "InDegree(" << rule << ", " << k << "): " << std::boolalpha << result << std::endl;
   }
-  return indeg;
-  /*
-  boost::write_graphviz(std::cout, R->graph, boost::default_writer(),
-    make_label_writer(boost::get(boost::edge_name, R->graph)));
-  */
+  return result;
+  // boost::write_graphviz(std::cout, R->graph, boost::default_writer(), make_label_writer(boost::get(boost::edge_name, R->graph)));
 }
 
 // The global map is injective for a given rule r iff:
 //   \forall    x,y,z: [(x -> z) && (y -> z) => (x == y)]
 //   \notexists x,y,z: [(x -> z) && (y -> z) && (x != y)]
-bool Injective(uint8_t rule) {
+bool Injective(uint32_t rule) {
+  BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
+
   GlobalMapOpts opts;
   opts.full = false;
 
@@ -1032,7 +1055,9 @@ bool Injective(uint8_t rule) {
 
 // The global map for a given rule r is surjective iff:
 //   \forall y, \exists x : x -> y
-bool Surjective(uint8_t rule) {
+bool Surjective(uint32_t rule) {
+  BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
+
   GlobalMapOpts opts;
   opts.full = false;
 
@@ -1272,20 +1297,20 @@ void Run(uint8_t r, uint8_t k, const std::vector<std::string>& p) {
     RuleTable(r);
   }
 
-  // printf("%d  ", Injective(r));
-  // printf("%d  ", Surjective(r));
+  printf("%d  ", Injective(r));
+  printf("%d  ", Surjective(r));
   // FixedPoint(r, p);
-  // Cycle(r, k);
+  printf("%d  ", Cycle(r, k+1));
   // Predecessor(r, k, p);
   printf("%d  ", InDegree(r, k));
   // RightShift(r, k, p);
-  // Nilpotent(r, k);
+  printf("%d  ", Nilpotent(r, k));
   // Minimal(r, k);
   // Cover(r, nullptr);
   std::cout << std::endl;
 }
 
-void Tabulate(uint8_t k) {
+void Tabulate(uint32_t k) {
   std::vector<std::string> f0 = { "f0" };
   std::vector<std::string> f1 = { "f1" };
   std::vector<std::string> x;
@@ -1305,18 +1330,27 @@ void Tabulate(uint8_t k) {
     printf("%3u  ", i);
     printf("%d  ", Injective(i));
     printf("%d  ", Surjective(i));
+    printf("%d  ", Cycle(i, 2));
+    printf("%d  ", Cycle(i, 3));
+    // printf("%d  ", Cycle(i, 4));
+    // printf("%d  ", Cycle(i, 5));
+    // printf("%d  ", Cycle(i, 6));
+    // printf("%d  ", Cycle(i, 7));
+    // printf("%d  ", Cycle(i, 8));
+    // printf("%d  ", Cycle(i, 9));
+    printf("%d  ", Nilpotent(i, 1));
+    // printf("%d  ", Nilpotent(i, 2));
+    // printf("%d  ", Nilpotent(i, 3));
+    // printf("%d  ", Nilpotent(i, 4));
+    // printf("%d  ", Nilpotent(i, 5));
+    printf("%d  ", InDegree(i, 1));
+    printf("%d  ", InDegree(i, 2));
+    // printf("%d  ", InDegree(i, 3));
     FixedPoint(i, x);
     // FixedPoint(i, y);
     // FixedPoint(i, z);
     // FixedPoint(i, f0);
     // FixedPoint(i, f1);
-    Cycle(i, 2);
-    Cycle(i, 3);
-    Cycle(i, 4);
-    Cycle(i, 5);
-    // Cycle(i, 6);
-    // Cycle(i, 7);
-    // Cycle(i, 8);
     // Predecessor(i, 1);
     // Predecessor(i, 2);
     // Predecessor(i, 2, x);
@@ -1324,18 +1358,10 @@ void Tabulate(uint8_t k) {
     // Predecessor(i, 3, z);
     // Predecessor(i, 4, x);
     // Predecessor(i, 5, x);
-    InDegree(i, 1);
-    InDegree(i, 2);
-    // InDegree(i, 3);
-    RightShift(i, 2, y);
+    RightShift(i, 2, x);
     // RightShift(i, 3, y);
     // RightShift(i, 4, y);
     // RightShift(i, 5, y);
-    // Nilpotent(i, 1);
-    // Nilpotent(i, 2);
-    // Nilpotent(i, 3);
-    // Nilpotent(i, 4);
-    // Nilpotent(i, 5);
     // Minimal(i, 1);
     // Minimal(i, 2);
     // Minimal(i, 3);

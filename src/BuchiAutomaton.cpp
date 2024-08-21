@@ -304,26 +304,28 @@ void BuchiAutomaton::ProjectLabel() {
   auto label = boost::get(boost::edge_name, graph);
 
   for (auto [v_itr, v_end] = boost::vertices(graph); v_itr != v_end; ++v_itr) {
-    std::unordered_set<int_pair> edges;
-
     // Explore all outgoing edges of the current vertex.
-    auto [e_itr, e_end] = boost::out_edges(*v_itr, graph);
-    for (auto e_next = e_itr; e_itr != e_end; e_itr = e_next) {
-      ++e_next;
+    auto done = false;
+    while (!done) {
+      done = true;
 
-      auto t = boost::target(*e_itr, graph);
-      auto symbol = label[*e_itr] & mask;
-      label[*e_itr] = symbol;
+      std::unordered_set<int_pair> edges;
+      for (auto [e_itr, e_end] = boost::out_edges(*v_itr, graph); e_itr != e_end; ++e_itr) {
+        auto t = boost::target(*e_itr, graph);
+        auto symbol = label[*e_itr] & mask;
+        label[*e_itr] = symbol;
 
-      auto itr = edges.find({index[t], symbol});
+        auto itr = edges.find({index[t], symbol});
 
-      // Update the label on the edge and record it to prevent duplicates
-      if (itr == edges.end()) {
-        edges.insert({index[t], symbol});
-      } else {
-        // Remove the duplicated edge.
-        // TODO: Does this invalidate iterators?
-        // boost::remove_edge(*e_itr, graph);
+        // Update the label on the edge and record it to prevent duplicates
+        if (itr == edges.end()) {
+          edges.insert({index[t], symbol});
+        } else {
+          // Remove the duplicated edge.
+          boost::remove_edge(*e_itr, graph);
+          done = false;
+          break;
+        }
       }
     }
   }
@@ -336,12 +338,10 @@ void BuchiAutomaton::ProjectLabel() {
   }
 }
 
-/**
-  * Generate a representation of the underlying transition graph as an
-  * unordered hash multimap.
-  *
-  * The keys are vertex-symbol pairs and the values are vertices.
- **/
+// Generate a representation of the underlying transition graph as an
+// unordered hash multimap.
+//
+// The keys are vertex-symbol pairs and the values are vertices.
 std::unique_ptr<TransitionMap> BuchiAutomaton::Map() const {
   auto map = std::make_unique<TransitionMap>();
 

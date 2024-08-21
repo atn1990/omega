@@ -13,16 +13,18 @@
 
 namespace omega {
 
-void Tabulate(std::uint8_t);
-void Canonical(std::uint8_t);
-void FixedPoint(std::uint8_t, const std::vector<std::string>&);
-void Cycle(std::uint8_t, std::uint32_t);
-void Minimal(std::uint8_t, std::uint32_t);
-void Run(std::uint8_t, std::uint8_t, const std::vector<std::string>&);
+void Tabulate(uint32_t);
+void Canonical(uint8_t);
+void FixedPoint(uint8_t, const std::vector<std::string>&);
+void Minimal(uint8_t, uint32_t);
+void Run(uint8_t, uint8_t, const std::vector<std::string>&);
+bool RightShift(uint32_t, uint32_t, const std::vector<std::string>&);
 
-bool Injective(std::uint8_t r);
-bool Surjective(std::uint8_t r);
-bool InDegree(std::uint8_t r, std::uint32_t k);
+bool Injective(uint32_t);
+bool Surjective(uint32_t);
+bool Cycle(uint32_t, uint32_t);
+bool Nilpotent(uint32_t, uint32_t);
+bool InDegree(uint32_t, uint32_t);
 
 } // namespace omega
 
