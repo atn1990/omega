@@ -6,7 +6,7 @@ CFLAGS = -Wall -Wextra
 CPPFLAGS = -DDEBUG_BUILD
 CXX = clang++
 CXXFLAGS = --std=c++17 -Wall -Wextra \
-					 -I. -isystem /usr/local/include \
+					 -I. -isystem /opt/homebrew/include \
 					 -Wno-unused-variable -Wno-unused-parameter -g
 
 					 # -Wthread-safety \
@@ -21,7 +21,7 @@ CXXFLAGS = --std=c++17 -Wall -Wextra \
 					 # -Wno-missing-noreturn \
 					 # -Wno-format-nonliteral \
 
-LDFLAGS = -L/usr/local/lib \
+LDFLAGS = -L/opt/homebrew/lib \
 					-lboost_program_options-mt \
 					-lboost_stacktrace_basic-mt
 
