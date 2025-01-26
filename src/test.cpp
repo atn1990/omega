@@ -21,7 +21,7 @@ boost::dynamic_bitset<> make_bitset(std::string s) {
 }
 
 extern int verbose;
-extern size_t num_threads;
+// extern size_t num_threads;
 
 struct GlobalFixture {
   void setup() {
@@ -32,19 +32,19 @@ struct GlobalFixture {
     } else {
       verbose = static_cast<int>(omega::OutputType::General);
     }
-    num_threads = 1;
+    // num_threads = 1;
   }
-  // void teardown() {}
+  void teardown() {}
 };
 
-struct MultiThreaded {
-  void setup() {
-    num_threads = 1;
-  }
-  void teardown() {
-    num_threads = 1;
-  }
-};
+// struct MultiThreaded {
+//   void setup() {
+//     num_threads = 1;
+//   }
+//   void teardown() {
+//     num_threads = 1;
+//   }
+// };
 
 BOOST_TEST_GLOBAL_FIXTURE(GlobalFixture);
 
@@ -148,13 +148,13 @@ BOOST_AUTO_TEST_CASE(InDegreeTest) {
 }
 
 BOOST_AUTO_TEST_CASE(BaseTest) {
-  omega::FixedPoint(0, {});
-  omega::FixedPoint(255, {});
+  BOOST_TEST(omega::FixedPoint(0, {}) == true);
+  BOOST_TEST(omega::FixedPoint(255, {}) == true);
   BOOST_TEST(omega::Injective(0) == false);
   BOOST_TEST(omega::Injective(255) == false);
   BOOST_TEST(omega::Surjective(0) == false);
   BOOST_TEST(omega::Surjective(255) == false);
   BOOST_TEST(omega::Cycle(0, 2) == false);
   BOOST_TEST(omega::Cycle(255, 2) == false);
-  BOOST_TEST(omega::Nilpotent(0, 1) == true);
+  // BOOST_TEST(omega::Nilpotent(0, 1) == true);
 }

@@ -24,3 +24,5 @@ jobs:
       run: make
     - name: buechi01
       run: ./driver examples/buechi01.aut --verbose=3
+    - name: test
+      run: VERBOSE=3 ./test

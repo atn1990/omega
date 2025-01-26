@@ -745,22 +745,20 @@ bool RightShift(uint32_t rule, uint32_t k, const std::vector<std::string>& p) {
 
 // Construct a Büchi automaton to check if an ECA has a fixed-point.
 // A one-way infinite elementary cellular automaton has a fixed-point if there exists a configuration that evolves to itself after one application of the global map.
-void FixedPoint(uint8_t rule, const std::vector<std::string>& p) {
+bool FixedPoint(uint8_t rule, const std::vector<std::string>& p) {
   GlobalMapOpts opts;
   opts.full = false;
 
-  // construct x_1 -> x_2 and x_1 == x_2
+  dbg(OutputType::General, printf("# Fixed Point %u\n", rule));
+
+  // Construct x_0 -> x_1 and x_0 == x_1
   dbg(OutputType::General, printf("# x0 -> x1\n"));
   auto M = GlobalMap(rule, 2, {0, 1}, opts);
 
   dbg(OutputType::General, printf("# x0 -> x0\n"));
   Equality(*M, {0, 1});
 
-  printf("%d  ", !M->Empty());
-
-  if (p.empty()) {
-    return;
-  }
+  return !M->Empty();
 
   std::unique_ptr<BuchiAutomaton> N;
   // ensure fixed point isn't forbidden
@@ -788,7 +786,8 @@ void FixedPoint(uint8_t rule, const std::vector<std::string>& p) {
 
     M = Intersection(*M, *N);
 
-    printf("%d  ", !M->Empty());
+    // printf("%d  ", !M->Empty());
+    return !M->Empty();
   }
 }
 

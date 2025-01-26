@@ -15,7 +15,7 @@ namespace omega {
 
 void Tabulate(uint32_t);
 void Canonical(uint8_t);
-void FixedPoint(uint8_t, const std::vector<std::string>&);
+bool FixedPoint(uint8_t, const std::vector<std::string>&);
 void Minimal(uint8_t, uint32_t);
 void Run(uint8_t, uint8_t, const std::vector<std::string>&);
 bool RightShift(uint32_t, uint32_t, const std::vector<std::string>&);

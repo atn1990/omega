@@ -978,7 +978,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
           // The empty tree is an absorbing state with a self-loop under all
           // transition symbols.
           for (auto j = 0U; j < num_alphabet; j++) {
-            rabin_map.insert({{empty_index, j}, static_cast<int_type>(empty_index)});
+            rabin_map.insert({{empty_index, j}, (int_type) empty_index});
           }
 
           num_empty = num_alphabet;
@@ -989,7 +989,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
           dbg(OutputType::General, printf("# Empty  %ld\n\n", empty_index));
         }
 
-        rabin_map.insert({{T->index, i}, static_cast<int_type>(empty_index)});
+        rabin_map.insert({{T->index, i}, (int_type) empty_index});
         num_empty++;
 
         continue;
