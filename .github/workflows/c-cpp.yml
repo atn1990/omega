@@ -8,12 +8,11 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        compiler: [gcc, clang]
-        os: [ubuntu-latest, macos-latest]
+    # strategy:
+    #   matrix:
+    #     compiler: [gcc, clang]
+    #     os: [ubuntu-latest, macos-latest]
 
     steps:
     - uses: actions/checkout@v4
