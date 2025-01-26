@@ -1,7 +1,5 @@
-/**
-  * <Safra.h>
-  *   Class definitions for SafraNode and SafraTree.
- **/
+// <Safra.h>
+//   Class definitions for SafraNode and SafraTree.
 
 #ifndef OMEGA_SAFRA_H
 #define OMEGA_SAFRA_H
@@ -18,14 +16,6 @@
 #include "Automaton.h"
 
 namespace omega {
-
-// using declarations
-
-// single bit, only leaves can be marked
-// enum class Status : uint8_t {
-//   Unmarked,
-//   Marked,
-// };
 
 class SafraNode {
   public:
@@ -54,7 +44,6 @@ class SafraNode {
     // v \in {1, 2, ..., 2n}
     uint32_t name;
 
-    // Status status { Status::Unmarked };
     bool marked = false;
 
     // \emptyset != L(v) \subset Q
@@ -71,8 +60,6 @@ class SafraTree {
     SafraTree &operator=(const SafraTree&) = delete;
     SafraTree &operator=(SafraTree&&) = delete;
 
-    // void Init(const boost::dynamic_bitset<> &, const boost::dynamic_bitset<> &);
-
     void Unmark();
     void Update(const TransitionMap&, int_type);
     void Create(const boost::dynamic_bitset<> &);
@@ -83,6 +70,7 @@ class SafraTree {
     void PrintTree(std::ostream& os = std::cout) const;
 
     bool operator==(const SafraTree& tree) const;
+    bool operator!=(const SafraTree& tree) const;
     size_t hash_value() const;
 
     std::unique_ptr<SafraNode> root;

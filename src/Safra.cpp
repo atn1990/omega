@@ -1,8 +1,6 @@
-/**
-  * <Safra.cpp>
-  *   Implementation of the SafraNode and SafraTree classes defined in
-  *   <Automaton.h> and the core of Safra's determinization algorithm.
- **/
+// <Safra.cpp>
+//   Implementation of the SafraNode and SafraTree classes defined in and the
+//   core of Safra's determinization algorithm.
 
 #include "Safra.h"
 #include "Util.h"
@@ -15,44 +13,29 @@
 
 namespace omega {
 
-// SafraNode Constructor
+// SafraNode constructor
 // Assigns a node the first unallocated name in the tree.
 SafraNode::SafraNode(const boost::dynamic_bitset<>& label, boost::dynamic_bitset<>& names)
   : label(label) {
   bool free_name = false;
 
-  // generate the complement of names
-  // there should always be a free name
-  // boost::dynamic_bitset<> unused = ~names;
-
   for (auto i = 0U; i < names.size(); i += 2) {
     if (!names[i]) {
-      name = i / 2;
+      name = i/2;
       names.set(i);
 
       return;
     }
   }
-  // all even positions are names
-  // ITERATE_BITSET(unused, i) {
-  //   if (i % 2 != 0)
-  //     continue;
 
-  //   name = i / 2;
-  //   names.set(i);
-
-  //   free_name = true;
-  //   break;
-  // }
-
+  // there should always be a free name
   BOOST_ASSERT(free_name);
 }
 
 
-// SafraNode Copy Constructor
+// SafraNode copy constructor
 SafraNode::SafraNode(const SafraNode& node) {
   name   = node.name;
-  // status = node.status;
   marked = node.marked;
   label  = node.label;
 
@@ -64,7 +47,6 @@ SafraNode::SafraNode(const SafraNode& node) {
 
 // Unmarks current node and recursively unmarks its descendants.
 void SafraNode::Unmark() {
-  // status = Status::Unmarked;
   marked = false;
 
   for (auto& child : children) {
@@ -74,7 +56,7 @@ void SafraNode::Unmark() {
 
 // Updates the label set according to the transition function under a given
 // input symbol.
-// The transition function has type T : N * N -> N
+// The transition function has type T : int * int -> int
 void SafraNode::Update(const TransitionMap& map, int_type symbol) {
   boost::dynamic_bitset<> new_label(label.size());
 
@@ -108,7 +90,6 @@ void SafraNode::Create(const boost::dynamic_bitset<>& final_states,
   // If a node is marked, then it was created by its parent during this step
   // since all existing nodes in the tree are unmarked at the start, so don't
   // create another child.
-  // if (status == Status::Marked) {
   if (marked) {
     return;
   }
@@ -119,7 +100,6 @@ void SafraNode::Create(const boost::dynamic_bitset<>& final_states,
 
   if (label.intersects(final_states)) {
     auto child = std::make_unique<SafraNode>(label & final_states, names);
-    // child->status = Status::Marked;
     child->marked = true;
     names.set(2 * child->name + 1);
     children.emplace_back(std::move(child));
@@ -197,7 +177,6 @@ void SafraNode::VerticalMerge() {
   // If the union of the every child label is the parent label, then remove
   // all descendants and mark the parent node.
   if (set == label) {
-    // status = Status::Marked;
     marked = true;
 
     // The destructor will take care of the descendants.
@@ -214,7 +193,6 @@ size_t SafraNode::FillNames(boost::dynamic_bitset<>& names) {
   size_t num_nodes = 1;
 
   names.set(2 * name);
-  // if (status == Status::Marked) {
   if (marked) {
     names.set(2 * name + 1);
   }
@@ -230,12 +208,6 @@ void SafraNode::PrintNode(std::ostream& os, int level) const {
   std::string indent(2*level, ' ');
   os << indent << "Name:  " << name << "\n";
   os << indent << "Marked:  " << std::boolalpha << marked << "\n";
-  // os << indent << "Status:  ";
-  // if (status == Status::Marked) {
-  //   os << "Marked\n";
-  // } else {
-  //   os << "Unmarked\n";
-  // }
   os << indent << "Label:  " << label << '\n';
 
   if (!children.empty()) {
@@ -254,7 +226,6 @@ bool SafraNode::operator==(const SafraNode& node) const {
     return false;
   }
 
-  // if (status != node.status) {
   if (marked != node.marked) {
     return false;
   }
@@ -309,13 +280,11 @@ SafraTree::SafraTree(
   // - I & F != 0
 
   if (initial_states.any() && initial_states.is_subset_of(final_states)) {
-    // root->status = Status::Marked;
     root->marked = true;
     names.set(2 * root->name + 1);
   } else if (initial_states.intersects(final_states)) {
     auto child =
       std::make_unique<SafraNode>(initial_states & final_states, names);
-    // child->status = Status::Marked;
     child->marked = true;
     names.set(2 * child->name + 1);
     root->children.emplace_back(std::move(child));
@@ -393,10 +362,13 @@ bool SafraTree::operator==(const SafraTree& tree) const {
   }
 }
 
+bool SafraTree::operator!=(const SafraTree& tree) const {
+  return !(*this == tree);
+}
+
 size_t SafraNode::hash_value() const {
   size_t seed = name;
 
-  // boost::hash_combine(seed, static_cast<size_t>(status));
   boost::hash_combine(seed, static_cast<size_t>(marked));
   boost::hash_combine(seed, label.to_ulong());
 
