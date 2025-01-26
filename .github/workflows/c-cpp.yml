@@ -17,5 +17,7 @@ jobs:
       run: sudo apt-get install libboost-all-dev
     - name: make
       run: make
-    - name: driver
-      run: ./driver examples/buechi01.aut
+    - name: buechi01
+      run: ./driver examples/buechi01.aut --verbose=3
+    - name: test
+      run: ./test
