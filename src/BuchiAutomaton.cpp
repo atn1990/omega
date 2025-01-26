@@ -88,7 +88,7 @@ void BuchiAutomaton::Print() const {
   char fmt[MAXLINE];
   snprintf(fmt, MAXLINE, "  %%%dzd", decimal_digits(num_vertices));
 
-  if (verbose == OUTFILE) {
+  if (verbose == static_cast<int>(OutputType::Outfile)) {
     printf("# BUCHI\n");
     printf("# RABIN SIZE: ?\n");
     printf("# RABIN TRANSITIONS: ?\n");
@@ -116,7 +116,7 @@ void BuchiAutomaton::Print() const {
     Automaton::Print();
 
     printf("# INITIAL\n");
-    if (verbose > GENERAL) {
+    if (verbose > static_cast<int>(OutputType::General)) {
       ITERATE_BITSET(initial_states, i) {
         printf(fmt, i);
       }
@@ -131,7 +131,7 @@ void BuchiAutomaton::Print() const {
     }
 
     printf("# FINAL\n");
-    if (verbose > GENERAL) {
+    if (verbose > static_cast<int>(OutputType::General)) {
       ITERATE_BITSET(final_states, i) {
         printf(fmt, i);
       }
@@ -211,7 +211,7 @@ void BuchiAutomaton::Clean() {
     }
   }
 
-  dbg(DEBUG, printf("Vertices Removed: %u\n\n", num_removed));
+  dbg(OutputType::Debug, printf("Vertices Removed: %u\n\n", num_removed));
 
   // The graph may have changed so update the state of the automaton.
   Resize();
@@ -222,18 +222,18 @@ class dfs_reachable_visitor : public boost::default_dfs_visitor {
   public:
     template <typename Vertex, typename Graph>
     void discover_vertex(Vertex u, const Graph &) {
-      dbg(DEBUG, std::cout << "discovered: " << u << "\n");
+      dbg(OutputType::Debug, std::cout << "discovered: " << u << "\n");
       reachable.set(u);
     }
 
     template <typename Vertex, typename Graph>
     void finish_vertex(Vertex u, const Graph&) const {
-      dbg(DEBUG, std::cout << "finished: " << u << "\n\n");
+      dbg(OutputType::Debug, std::cout << "finished: " << u << "\n\n");
     }
 
     template <typename Edge, typename Graph>
     void examine_edge(Edge e, const Graph&) const {
-      dbg(DEBUG, std::cout << "examined: " << e << "\n");
+      dbg(OutputType::Debug, std::cout << "examined: " << e << "\n");
     }
 
     // boost::dynamic_bitset<>& get_reachable() {
@@ -264,7 +264,7 @@ void BuchiAutomaton::Reachable() {
     boost::depth_first_visit(graph, v, vis, color_map);
   }
 
-  if (verbose > DEBUG) {
+  if (verbose > static_cast<int>(OutputType::Debug)) {
     std::cout << "Reachable: " << vis.reachable << "\n\n";
   }
 
@@ -279,7 +279,7 @@ void BuchiAutomaton::Reachable() {
     Clean();
   }
 
-  if (verbose > DEBUG) {
+  if (verbose > static_cast<int>(OutputType::Debug)) {
     Print();
   }
 }
@@ -333,7 +333,7 @@ void BuchiAutomaton::ProjectLabel() {
   // by removing duplicated edges, no vertices become inaccessible
   num_edges = boost::num_edges(graph);
 
-  if (verbose > GENERAL) {
+  if (verbose > static_cast<int>(OutputType::General)) {
     Print();
   }
 }
@@ -448,7 +448,7 @@ void BuchiAutomaton::FindCycle(
 
 // Checks if the language recognized by the automaton is empty.
 bool BuchiAutomaton::Empty() {
-  dbg(QUIET, printf("# EMPTY\n\n"));
+  dbg(OutputType::Quiet, printf("# EMPTY\n\n"));
 
   // Generate the strongly connected components using Tarjan's algorithm.
   std::vector<int32_t> component(num_vertices);
@@ -470,7 +470,7 @@ bool BuchiAutomaton::Empty() {
 
     for (auto& u : list) {
       auto k = index[u];
-      dbg(DEBUG, printf(fmt, k, component[k]));
+      dbg(OutputType::Debug, printf(fmt, k, component[k]));
 
       // A component is non-trivial if it contains a final state.
       if (final_states[k]) {
@@ -495,7 +495,7 @@ bool BuchiAutomaton::Empty() {
     }
   }
 
-  if (verbose > GENERAL) {
+  if (verbose > static_cast<int>(OutputType::General)) {
     std::cout << '\n';
 
     // Print the non-trivial components.
@@ -547,7 +547,7 @@ bool BuchiAutomaton::Empty() {
 
       // There is a path from an initial state to a final state in a
       // non-trivial strongly connected component.
-      if (verbose > GENERAL) {
+      if (verbose > static_cast<int>(OutputType::General)) {
         std::vector<uint8_t> path;
 
         // Output the path from the initial state to the final state.
@@ -587,48 +587,12 @@ bool BuchiAutomaton::Empty() {
     }
   }
 
-  if (verbose > GENERAL) {
+  if (verbose > static_cast<int>(OutputType::General)) {
     std::cout << std::endl;
   }
 
   return trivial;
 }
-
-/**
-  * Translates a non-deterministic Büchi automaton into a deterministic Rabin
-  * automaton using Safra's determinization algorithm.
-  *
-  * Safra's algorithm consists of the following six steps are:
-  *  - unmark
-  *  - update
-  *  - create
-  *  - horizontal_merge
-  *  - kill_empty
-  *  - vertical_merge
-  *
-  * Starting from the initial tree, these steps are iterated on each tree for
-  * each input symbol until no new tree is produced.
-  *
-  * A queue of SafraTree pointers keeps track of the next tree to compute with:
-  *  - pop a tree from the front of the queue and run the six steps of the
-  *    algorithm for every input symbol
-  *  - if a tree is unique, hash it, give it a unique index number, and push it
-  *    to the end of the queue
-  *
-  * A std::unordered_multimap keeps track of the transitions for the input
-  * automaton, as well as the computed Rabin automaton.
-  *
-  * Every time a non-empty tree is found, check if it's in the hash table:
-  *  - if it is, retrieve the stored tree, and store a new transition from the
-  *    index of the old tree and the current input symbol, to the index of the
-  *    stored tree
-  *  - otherwise, use the lowest index number available and store a new
-  *    transition as before
-  *
-  * Once the algorithm terminates, convert the hashed transitions into a graph
-  * with the hashed trees as vertices. Extract the Rabin pairs from the stored
-  * trees.
- **/
 
 struct TreePtrHash {
   size_t operator()(const std::shared_ptr<SafraTree>& tree) const {
@@ -667,6 +631,39 @@ class label_writer {
     Name name;
 };
 
+// Converts a non-deterministic Büchi automaton into a deterministic Rabin
+// automaton using Safra's determinization algorithm.
+
+// Safra's algorithm consists of the following six steps:
+//   - unmark
+//   - update
+//   - create
+//   - horizontal_merge
+//   - kill_empty
+//   - vertical_merge
+
+// Starting from the initial tree, these steps are iterated on each tree for
+// each input symbol until no new tree is produced.
+
+// A queue of SafraTree pointers keeps track of the next tree to compute:
+//   - pop a tree from the front of the queue and run the six steps of the
+//     algorithm for every input symbol
+//   - if a tree is unique, hash it, give it a unique index number, and push
+//     it to the end of the queue
+
+// A std::unordered_multimap keeps track of the transitions for the input
+// automaton, as well as the computed Rabin automaton.
+
+// Every time a non-empty tree is found, check if it is in the hash table:
+//   - if it is, retrieve the stored tree, and store a new transition from the
+//     index of the old tree and the current input symbol to the index of the
+//     stored tree
+//   - otherwise, use the lowest index number available and store a new
+//     transition as before
+
+// Once the algorithm terminates, convert the hashed transitions into a graph
+// with the hashed trees as vertices. Extract the Rabin pairs from the stored
+// trees.
 std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap &map, DeterminizeOpts opts) const {
   std::unordered_set<std::shared_ptr<SafraTree>, TreePtrHash, TreePtrEq> set;
   std::list<std::shared_ptr<SafraTree>> list;
@@ -674,38 +671,39 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
 
   RabinTransitionMap rabin_map;
 
-  auto empty_index = 0U;
+  auto empty_index = -1L;
 
   std::atomic<size_type> num_trees(1);
   std::atomic<size_type> num_empty(0);
 
-  auto T = std::make_shared<SafraTree>(num_vertices, initial_states, final_states);
-  // T->Init(initial_states, final_states);
+  auto initial = std::make_shared<SafraTree>(num_vertices, initial_states, final_states);
+  // initial->Init(initial_states, final_states);
 
   // The initial tree has index 0
-  // T->index = 0;
-  if (verbose > GENERAL) {
+  initial->index = 0;
+  if (verbose > static_cast<int>(OutputType::General)) {
     printf("# Determinize()\n");
-    printf("Index:  %u\n", T->index);
-    T->PrintTree();
+    printf("Hash:  %zu\n", hash_value(*initial));
+    printf("Index:  %u\n", initial->index);
+    initial->PrintTree();
   }
 
   // hash a copy of the initial tree and push it onto the queue
-  set.insert(T);
-  list.push_back(T);
+  set.insert(initial);
+  list.push_back(initial);
 
-  auto U = std::make_shared<SafraTree>(*T);
+  auto U = std::make_shared<SafraTree>(*initial);
   queue.push(U);
 
   // Guards the queue and condition variable.
-  std::mutex queue_mutex;
-  std::condition_variable cv;
+  // std::mutex queue_mutex;
+  // std::condition_variable cv;
 
   // Guards access to set, list, and rabin_map.
-  std::mutex data_mutex;
+  // std::mutex data_mutex;
 
-  auto ready = true;
-  auto num_waiting = 0UL;
+  // auto ready = true;
+  // auto num_waiting = 0UL;
 
   // auto f =
   //   [&]() -> void {
@@ -750,7 +748,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   //         std::cerr << buf.str();
   //       }
 
-  //       if (verbose > GENERAL) {
+  //       if (verbose > OutputType::General) {
   //         std::ostringstream buf;
   //         buf << "Index:  " << T->index << '\n';
   //         T->PrintTree(buf);
@@ -759,7 +757,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
 
   //       // save time by unmarking the tree once
   //       T->Unmark();
-  //       dbg(DEBUG,
+  //       dbg(OutputType::Debug,
   //           std::ostringstream buf;
   //           buf << "# Unmark()\n";
   //           T->PrintTree(buf);
@@ -769,7 +767,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   //       // per new tree.
   //       if (opts.SwapUpdateCreate) {
   //         T->Create(final_states);
-  //         dbg(DEBUG,
+  //         dbg(OutputType::Debug,
   //             std::ostringstream buf;
   //             buf << "# Create()\n";
   //             T->PrintTree(buf);
@@ -781,7 +779,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   //         num_trees++;
 
   //         U->Update(map, i);
-  //         dbg(DEBUG,
+  //         dbg(OutputType::Debug,
   //             std::ostringstream buf;
   //             buf << "# Update() f(_, ";
   //             print_binary(i, binary_digits(num_alphabet), buf);
@@ -792,7 +790,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   //         // The update and create steps are interchangable.
   //         if (!opts.SwapUpdateCreate) {
   //           U->Create(final_states);
-  //           dbg(DEBUG,
+  //           dbg(OutputType::Debug,
   //               std::ostringstream buf;
   //               buf << "# Create()\n";
   //               U->PrintTree(buf);
@@ -800,14 +798,14 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   //         }
 
   //         U->HorizontalMerge();
-  //         dbg(DEBUG,
+  //         dbg(OutputType::Debug,
   //             std::ostringstream buf;
   //             buf << "# HorizontalMerge()\n";
   //             U->PrintTree(buf);
   //             std::cout << buf.str());
 
   //         U->KillEmpty();
-  //         dbg(DEBUG,
+  //         dbg(OutputType::Debug,
   //             std::ostringstream buf;
   //             buf << "# KillEmpty()\n";
   //             U->PrintTree(buf);
@@ -845,20 +843,20 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   //             num_empty = num_alphabet + 1;
   //             // data_mutex.unlock();
 
-  //             dbg(GENERAL, printf("Unique:  %u\n\n", U->index));
+  //             dbg(OutputType::General, printf("Unique:  %u\n\n", U->index));
   //           } else {
   //             rabin_map.insert({{T->index, i}, empty_index});
   //             num_empty++;
   //             // data_mutex.unlock();
 
-  //             dbg(GENERAL, printf("\nEmpty:  %llu\n\n", empty_index));
+  //             dbg(OutputType::General, printf("\nEmpty:  %llu\n\n", empty_index));
   //           }
 
   //           continue;
   //         }
 
   //         U->VerticalMerge();
-  //         dbg(DEBUG,
+  //         dbg(OutputType::Debug,
   //             std::ostringstream buf;
   //             buf << "# VerticalMerge()\n";
   //             U->PrintTree(buf);
@@ -887,7 +885,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   //           queue_mutex.unlock();
   //           cv.notify_one();
 
-  //           dbg(GENERAL, printf("Unique:  %u\n\n", U->index));
+  //           dbg(OutputType::General, printf("Unique:  %u\n\n", U->index));
   //         } else {
   //           // same as a previously computed tree
   //           // add the corresponding transition
@@ -895,7 +893,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   //           auto index = (*itr)->index;
   //           data_mutex.unlock();
 
-  //           dbg(GENERAL, printf("Index:  %u\n\n", index));
+  //           dbg(OutputType::General, printf("Index:  %u\n\n", index));
   //         }
   //       }
   //     }
@@ -914,14 +912,15 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
     auto T = queue.front();
     queue.pop();
 
-    if (verbose > GENERAL) {
+    if (verbose > static_cast<int>(OutputType::General)) {
+      printf("Hash:  %zu\n", hash_value(*T));
       printf("Index:  %u\n", T->index);
       T->PrintTree();
     }
 
     // save time by unmarking the tree once
     T->Unmark();
-    if (verbose > GENERAL) {
+    if (verbose > static_cast<int>(OutputType::General)) {
       printf("# Unmark()\n");
       T->PrintTree();
     }
@@ -929,7 +928,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
     // if update and create are swapped, children are created once per new tree
     if (opts.SwapUpdateCreate) {
       T->Create(final_states);
-      if (verbose > GENERAL) {
+      if (verbose > static_cast<int>(OutputType::General)) {
         printf("# Create()\n");
         T->PrintTree();
       }
@@ -940,30 +939,30 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
       num_trees++;
 
       U->Update(map, i);
-      if (verbose > GENERAL) {
-        std::cout << "# Update() f(_, ";
-        print_binary(i, binary_digits(num_alphabet), std::cout);
-        std::cout << ")\n";
+      if (verbose > static_cast<int>(OutputType::General)) {
+        printf("# Update() f(_, ");
+        print_binary(i, binary_digits(num_alphabet));
+        printf(")\n");
         U->PrintTree();
       }
 
       // update and create steps are interchangable
       if (!opts.SwapUpdateCreate) {
         U->Create(final_states);
-        if (verbose > GENERAL) {
+        if (verbose > static_cast<int>(OutputType::General)) {
           printf("# Create()\n");
           U->PrintTree();
         }
       }
 
       U->HorizontalMerge();
-      if (verbose > GENERAL) {
+      if (verbose > static_cast<int>(OutputType::General)) {
         printf("# HorizontalMerge()\n");
         U->PrintTree();
       }
 
       U->KillEmpty();
-      if (verbose > GENERAL) {
+      if (verbose > static_cast<int>(OutputType::General)) {
         printf("# KillEmpty()\n");
         U->PrintTree();
       }
@@ -971,7 +970,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
       // delete empty trees
       if (U->root == nullptr) {
         if (num_empty == 0) {
-          boost::dynamic_bitset<> L(num_vertices);
+          // boost::dynamic_bitset<> L(num_vertices);
 
           U->names.reset();
           // U->marked.reset();
@@ -993,9 +992,9 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
 
           num_empty = num_alphabet;
 
-          dbg(GENERAL, printf("# Unique  %u\n\n", U->index));
+          dbg(OutputType::General, printf("# Unique  %u\n\n", U->index));
         } else {
-          dbg(GENERAL, printf("\n# Empty  %u\n\n", empty_index));
+          dbg(OutputType::General, printf("# Empty  %u\n\n", empty_index));
         }
 
         rabin_map.insert({{T->index, i}, empty_index});
@@ -1005,18 +1004,17 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
       }
 
       U->VerticalMerge();
-      if (verbose > GENERAL) {
+      if (verbose > static_cast<int>(OutputType::General)) {
         printf("# VerticalMerge()\n");
         U->PrintTree();
       }
 
       auto itr = set.find(U);
-
       if (itr == set.end()) {
         // unique tree
-        // - add it to the hash table of trees
-        // - push it to the queue of pending trees
-        // - add the corresponding transition
+        //  - add it to the hash table of trees
+        //  - push it to the queue of pending trees
+        //  - add the corresponding transition
         U->index = list.size();
 
         set.insert(U);
@@ -1024,16 +1022,16 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
         queue.push(std::make_shared<SafraTree>(*U));
 
         rabin_map.insert({{T->index, i}, U->index});
-        dbg(GENERAL, printf("# f(%u, %u) -> %u\n\n", T->index, i, U->index));
+        dbg(OutputType::General, printf("# f(%u, %u) -> %u\n\n", T->index, i, U->index));
 
-        dbg(GENERAL, printf("# Unique  %u\n\n", U->index));
+        dbg(OutputType::General, printf("# Unique  %u\n\n", U->index));
       } else {
         // same as a previously computed tree
         // add the corresponding transition
         rabin_map.insert({{T->index, i}, (*itr)->index});
-        dbg(GENERAL, printf("# f(%u, %u) -> %u\n\n", T->index, i, (*itr)->index));
+        dbg(OutputType::General, printf("# f(%u, %u) -> %u\n\n", T->index, i, (*itr)->index));
 
-        dbg(GENERAL, printf("# Index  %u\n\n", (*itr)->index));
+        dbg(OutputType::General, printf("# Index  %u\n\n", (*itr)->index));
       }
     }
   }
@@ -1041,14 +1039,14 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   // double check # trees hashed is the same as # trees indexed
   BOOST_ASSERT(list.size() == set.size());
 
-  if (verbose > QUIET) {
+  if (verbose > static_cast<int>(OutputType::Quiet)) {
     printf("# Trees Generated    %llu\n", num_trees.load());
     printf("# Trees Hashed       %zd\n", set.size());
     printf("# Empty Trees        %llu\n", num_empty.load());
     printf("# Rabin Transitions  %zd\n\n", rabin_map.size());
   }
 
-  if (verbose > GENERAL) {
+  if (verbose > static_cast<int>(OutputType::General)) {
     printf("# Trees\n");
 
     for (auto& tree : list) {
@@ -1071,7 +1069,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   auto rabin = std::make_unique<RabinAutomaton>(num_alphabet, list.size());
   rabin->Init(rabin_map);
 
-  dbg(QUIET, printf("\n# PAIRS\n"));
+  dbg(OutputType::Quiet, printf("\n# PAIRS\n"));
 
   // Rabin left and right
   // L is set of trees in which state i does not appear
@@ -1100,7 +1098,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
     if (R.any()) {
       rabin->pairs.push_back({L, R});
 
-      if (verbose > QUIET) {
+      if (verbose > static_cast<int>(OutputType::Quiet)) {
         std::cout << "i = " << (i/2) << "\n"
                   << rabin->pairs.back().left << "\n"
                   << rabin->pairs.back().right << "\n" << std::endl;
@@ -1179,7 +1177,7 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
 
     size_type index = itr->second;
 
-    if (verbose > GENERAL) {
+    if (verbose > static_cast<int>(OutputType::General)) {
       printf("Index:  %llu  ", index);
       std::cout << Q << std::endl;
     }
@@ -1204,12 +1202,12 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
 
           num_empty = num_alphabet;
 
-          if (verbose > GENERAL) {
+          if (verbose > static_cast<int>(OutputType::General)) {
             printf("# Unique  %llu  ", empty_index);
             std::cout << N << "\n" << std::endl;
           }
         } else {
-          dbg(GENERAL, printf("\n# Empty  %llu\n\n", empty_index));
+          dbg(OutputType::General, printf("\n# Empty  %llu\n\n", empty_index));
         }
 
         dfa_map.insert({{index, i}, empty_index});
@@ -1233,7 +1231,7 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
 
         dfa_map.insert({{index, i}, N_index});
 
-        if (verbose > GENERAL) {
+        if (verbose > static_cast<int>(OutputType::General)) {
           printf("# Unique  %llu  ", N_index);
           std::cout << N << "\n\n";
         }
@@ -1243,7 +1241,7 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
         // same as a previously computed tree
         // add the corresponding transition
         dfa_map.insert({{index, i}, itr->second});
-        dbg(GENERAL, printf("# Index  %llu\n\n", itr->second));
+        dbg(OutputType::General, printf("# Index  %llu\n\n", itr->second));
       }
     }
 
@@ -1257,16 +1255,16 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
   // the key of the tree, so make sure result didn't overflow
   BOOST_ASSERT(state_list.size() <= UINT32_MAX);
 
-  if (verbose > QUIET) {
+  if (verbose > static_cast<int>(OutputType::Quiet)) {
     printf("# STATES GENERATED %llu\n", num_states);
     printf("# STATES HASHED    %zd\n", hash.size());
     printf("# EMPTY STATES     %llu\n", num_empty);
     printf("# TRANSITIONS      %zd\n\n", dfa_map.size());
   }
 
-  dbg(GENERAL, printf("# STATES\n"));
+  dbg(OutputType::General, printf("# STATES\n"));
 
-  //dfa_map.insert({{state_list.size(), 0}, 0});
+  // dfa_map.insert({{state_list.size(), 0}, 0});
 
   B = std::make_unique<BuchiAutomaton>(num_alphabet, state_list.size());
   B->Init(dfa_map);
@@ -1277,7 +1275,7 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
   for (auto i = 0U; i < state_list.size(); i++) {
     boost::dynamic_bitset<> S(state_list[i]);
 
-    if (verbose > GENERAL) {
+    if (verbose > static_cast<int>(OutputType::General)) {
       std::printf("Index: %u  ", i);
       std::cout << S << std::endl;
     }
@@ -1287,9 +1285,9 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
     }
   }
 
-  dbg(GENERAL, printf("\n"));
+  dbg(OutputType::General, printf("\n"));
 
-  if (verbose > DEBUG) {
+  if (verbose > static_cast<int>(OutputType::Debug)) {
     B->Print();
   }
 
@@ -1304,7 +1302,7 @@ void BuchiAutomaton::Minimize() {
 
   std::vector<int> E(num_vertices);
 
-  dbg(GENERAL, printf("# Minimize()\n\n"));
+  dbg(OutputType::General, printf("# Minimize()\n\n"));
 
   char fmt[MAXLINE];
   std::snprintf(fmt, MAXLINE, "%%%dzd  index = %%%dd    ",
@@ -1329,8 +1327,8 @@ void BuchiAutomaton::Minimize() {
         E[i] = e1;
       }
     }
-    dbg(GENERAL, printf(fmt, i, E[i]));
-    dbg(GENERAL, std::cout << final_states[i] << "\n");
+    dbg(OutputType::General, printf(fmt, i, E[i]));
+    dbg(OutputType::General, std::cout << final_states[i] << "\n");
   }
   if (false) {
   std::unordered_map<bool, int> H;
@@ -1340,13 +1338,13 @@ void BuchiAutomaton::Minimize() {
     if (H_itr != H.end()) {
       E[i] = H_itr->second;
 
-      // if (verbose > GENERAL) {
+      // if (verbose > OutputType::General) {
       //   std::printf(fmt, i, E[i]);
       //   std::cout << final_states[i] << "\n";
       // }
 
-      dbg(GENERAL, printf(fmt, i, E[i]));
-      dbg(GENERAL, std::cout << final_states[i] << "\n");
+      dbg(OutputType::General, printf(fmt, i, E[i]));
+      dbg(OutputType::General, std::cout << final_states[i] << "\n");
     } else {
       // assign unique index to the ith pair
       E[i] = i;
@@ -1356,17 +1354,17 @@ void BuchiAutomaton::Minimize() {
         sink = E[i];
       }
 
-      // if (verbose > GENERAL) {
+      // if (verbose > static_cast<int>(OutputType::General)) {
       //   std::printf(fmt, i, E[i]);
       //   std::cout << final_states[i] << " (*)\n";
       // }
 
-      dbg(GENERAL, printf(fmt, i, E[i]));
-      dbg(GENERAL, std::cout << final_states[i] << " (*)\n");
+      dbg(OutputType::General, printf(fmt, i, E[i]));
+      dbg(OutputType::General, std::cout << final_states[i] << " (*)\n");
     }
   }
 
-  dbg(GENERAL, printf("\n"));
+  dbg(OutputType::General, printf("\n"));
 
   size_type num_rounds = 0;
   size_type num_states = 0;
@@ -1384,22 +1382,22 @@ void BuchiAutomaton::Minimize() {
   while (!equivalent) {
     num_rounds++;
 
-    dbg(GENERAL, printf("%*s:", binary_digits(num_alphabet), "E"));
+    dbg(OutputType::General, printf("%*s:", binary_digits(num_alphabet), "E"));
 
     // prev is the initial equivalence class at the start of the round
     for (auto i = 0UL; i < num_vertices; i++) {
       temp[i] = -1;
       prev[i] = E[i];
 
-      dbg(GENERAL, printf(fmt, prev[i]));
+      dbg(OutputType::General, printf(fmt, prev[i]));
     }
 
     for (auto s = 0UL; s < num_alphabet; s++) {
       std::unordered_map<int_pair, int_type> m(num_vertices);
 
-      dbg(GENERAL, printf("\n"));
-      dbg(GENERAL, print_binary(s, binary_digits(num_alphabet)));
-      dbg(GENERAL, printf(":"));
+      dbg(OutputType::General, printf("\n"));
+      dbg(OutputType::General, print_binary(s, binary_digits(num_alphabet)));
+      dbg(OutputType::General, printf(":"));
 
       for (auto j = 0UL; j < num_vertices; j++) {
         auto u = boost::vertex(j, graph);
@@ -1416,10 +1414,10 @@ void BuchiAutomaton::Minimize() {
           }
         }
 
-        dbg(GENERAL, printf(fmt, temp[j]));
+        dbg(OutputType::General, printf(fmt, temp[j]));
       }
 
-      dbg(GENERAL, printf("\n%*s:", binary_digits(num_alphabet), "*"));
+      dbg(OutputType::General, printf("\n%*s:", binary_digits(num_alphabet), "*"));
 
       size_type current = 0;
       equivalent = true;
@@ -1440,21 +1438,21 @@ void BuchiAutomaton::Minimize() {
         }
 
         temp[j] = -1;
-        dbg(GENERAL, printf(fmt, E[j]));
+        dbg(OutputType::General, printf(fmt, E[j]));
       }
 
       num_states = m.size();
-      dbg(GENERAL, printf("\nUnique states = %llu\n", num_states));
+      dbg(OutputType::General, printf("\nUnique states = %llu\n", num_states));
     }
 
-    dbg(GENERAL, printf("\n\n"));
+    dbg(OutputType::General, printf("\n\n"));
   }
 
-  dbg(QUIET, printf("Rounds = %llu\n", num_rounds));
+  dbg(OutputType::Quiet, printf("Rounds = %llu\n", num_rounds));
 
   // once behavioral equivalence is computed, merge equivalent states
   if (num_states == num_vertices) {
-    dbg(GENERAL, printf("All states behaviorally unique.\n\n"));
+    dbg(OutputType::General, printf("All states behaviorally unique.\n\n"));
     return;
   }
 
@@ -1484,7 +1482,7 @@ void BuchiAutomaton::Minimize() {
     }
   }
 
-  dbg(GENERAL, printf("States removed = %llu\n\n", num_vertices-num_states));
+  dbg(OutputType::General, printf("States removed = %llu\n\n", num_vertices-num_states));
 
   graph = H;
 
@@ -1509,7 +1507,7 @@ void BuchiAutomaton::Minimize() {
   initial_states = I;
   final_states = F;
 
-  if (verbose > QUIET) {
+  if (verbose > static_cast<int>(OutputType::Quiet)) {
     Print();
   }
 }
@@ -1541,8 +1539,8 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
   std::queue<int_triple> queue;
   std::queue<graph_t::vertex_descriptor> vertex_queue;
 
-  dbg(DEBUG, printf("# N(A) = %llu, N(B) = %llu, S = %llu\n", A.num_vertices, B.num_vertices, C->num_alphabet));
-  dbg(DEBUG, printf("# Initial States\n"));
+  dbg(OutputType::Debug, printf("# N(A) = %llu, N(B) = %llu, S = %llu\n", A.num_vertices, B.num_vertices, C->num_alphabet));
+  dbg(OutputType::Debug, printf("# Initial States\n"));
 
   char fmt_vrtx[MAXLINE];
   snprintf(fmt_vrtx, MAXLINE, "(%%%du, %%%du, %%u)\n",
@@ -1564,11 +1562,11 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
       // The state (a, b, INITIAL) is both initial and final.
       state[u] = NodeType::Initial;
 
-      dbg(DEBUG, printf(fmt_vrtx, i, j, NodeType::Initial));
+      dbg(OutputType::Debug, printf(fmt_vrtx, i, j, NodeType::Initial));
     }
   }
 
-  dbg(DEBUG, printf("\n"));
+  dbg(OutputType::Debug, printf("\n"));
 
   snprintf(fmt_vrtx, MAXLINE, "(%%%du, %%%du, %%u)\n",
       decimal_digits(A.num_vertices), decimal_digits(B.num_vertices));
@@ -1584,19 +1582,19 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
     queue.pop();
     vertex_queue.pop();
 
-    dbg(DEBUG, printf(fmt_vrtx, i_A, i_B, component));
+    dbg(OutputType::Debug, printf(fmt_vrtx, i_A, i_B, component));
 
     auto u_A = boost::vertex(i_A, A.graph);
     auto u_B = boost::vertex(i_B, B.graph);
 
     if (component == static_cast<int>(NodeType::Initial)) {
-      // INITIAL -> FINAL_1 on next input
-      component = FINAL_1;
-    } else if (component == FINAL_1 && A.final_states[i_A]) {
-      // FINAL_1 -> FINAL_2 when a final state of A is seen
-      component = FINAL_2;
-    } else if (component == FINAL_2 && B.final_states[i_B]) {
-      // FINAL_2 -> INITIAL when a final state of B is seen
+      // NodeType::Initial -> NodeType::Final1 on next input
+      component = static_cast<int>(NodeType::Final1);
+    } else if (component == static_cast<int>(NodeType::Final1) && A.final_states[i_A]) {
+      // NodeType::Final1 -> FinalType::Final2 when a final state of A is seen
+      component = static_cast<int>(NodeType::Final2);
+    } else if (component == static_cast<int>(NodeType::Final2) && B.final_states[i_B]) {
+      // NodeType::Final2 -> NodeType::Initial when a final state of B is seen
       component = static_cast<int>(NodeType::Initial);
     }
 
@@ -1618,9 +1616,9 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
         auto v_B = boost::target(e_B, B.graph);
         auto i_vB = index_B[v_B];
 
-        dbg(DEBUG, printf("  "));
-        dbg(DEBUG, print_binary(symbol, binary_digits(C->num_alphabet)));
-        dbg(DEBUG, printf(fmt_edge, i_vA, i_vB, component));
+        dbg(OutputType::Debug, printf("  "));
+        dbg(OutputType::Debug, print_binary(symbol, binary_digits(C->num_alphabet)));
+        dbg(OutputType::Debug, printf(fmt_edge, i_vA, i_vB, component));
 
         auto tup = std::make_tuple(i_vA, i_vB, component);
         auto itr = map.find(tup);
@@ -1635,7 +1633,7 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
             state[v] = NodeType::None;
           }
 
-          dbg(DEBUG, printf("  *"));
+          dbg(OutputType::Debug, printf("  *"));
           itr = map.insert({tup, v}).first;
 
           queue.push(std::move(tup));
@@ -1646,16 +1644,16 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
         auto [e, b] = boost::add_edge(u, itr->second, C->graph);
         label[e] = symbol;
 
-        dbg(DEBUG, printf("\n"));
+        dbg(OutputType::Debug, printf("\n"));
       }
     }
 
-    dbg(DEBUG, printf("\n"));
+    dbg(OutputType::Debug, printf("\n"));
   }
 
   C->Resize();
 
-  dbg(GENERAL, C->Print());
+  dbg(OutputType::General, C->Print());
 
   return C;
 }
@@ -1741,7 +1739,7 @@ std::unique_ptr<BuchiAutomaton> DisjointUnion(const BuchiAutomaton& A, const Buc
   // output->Clean();
   // output->Resize();
 
-  if (verbose > GENERAL) {
+  if (verbose > static_cast<int>(OutputType::General)) {
     output->Print();
   }
 

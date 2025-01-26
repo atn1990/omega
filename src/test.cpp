@@ -30,7 +30,7 @@ struct GlobalFixture {
       char* end;
       verbose = std::strtol(env, &end, 10);
     } else {
-      verbose = GENERAL;
+      verbose = static_cast<int>(omega::OutputType::General);
     }
     num_threads = 1;
   }

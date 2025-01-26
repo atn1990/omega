@@ -73,7 +73,7 @@ void classify(const std::string& filename) {
   // decltype(cmp)
 
   // maps a size of a class to a set of traces of that class size
-  std::map<uint8_t, std::set<std::string>> class_map;
+  std::map<int, std::set<std::string>> class_map;
 
   std::ifstream file(filename);
   if (file.fail()) {
@@ -113,7 +113,6 @@ void classify(const std::string& filename) {
     if (itr == map.end()) {
       auto [itr, added] = map.emplace(str, std::list<uint8_t>{});
       BOOST_ASSERT(added);
-      // auto [itr, added] = map.emplace(str, std::list<uint8_t>{});
     }
 
     itr->second.push_back(rule);
@@ -181,14 +180,14 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
       std::getline(file, str);
 
       // optimization: use uint8_t to represent transition symbols on edges
-      assert(alphabet <= UINT8_MAX+1);
+      BOOST_ASSERT(alphabet <= UINT8_MAX+1);
     } else if (str == "# TRANSITIONS") {
       file >> transitions;
       std::getline(file, str);
     } else if (str == "# BEGIN TRANSITIONS") {
       uint32_t u, v, s;
 
-      dbg(GENERAL, printf("# TRANSITIONS\n"));
+      dbg(omega::OutputType::General, printf("# TRANSITIONS\n"));
 
       // std::getline(file, str);
       while (std::getline(file, str) && str != "# END TRANSITIONS") {
@@ -203,26 +202,26 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
         }
 
         map.insert({{u, s}, v});
-        if (verbose > GENERAL) {
+        if (verbose > static_cast<int>(omega::OutputType::General)) {
           std::cout << "(" << u << ", " << s << ") -> " << v << "\n";
         }
 
         count++;
       }
 
-      dbg(GENERAL, printf("\n"));
+      dbg(omega::OutputType::General, printf("\n"));
     } else if (str == "# INITIAL") {
       file >> I;
       std::getline(file, str);
 
-      if (verbose > GENERAL) {
+      if (verbose > static_cast<int>(omega::OutputType::General)) {
         std::cout << "# INITIAL\n" << I << "\n\n";
       }
     } else if (str == "# FINAL") {
       file >> F;
       std::getline(file, str);
 
-      if (verbose > GENERAL) {
+      if (verbose > static_cast<int>(omega::OutputType::General)) {
         std::cout << "# FINAL\n" << F << "\n\n";
       }
     }
@@ -233,32 +232,33 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
   file.close();
 
   // Remove useless final states. If they're all final, don't bother.
-  if (F.count() != F.size()) {
-    dbg(GENERAL, printf("# Removing useless final states\n\n"));
-    assert(F.count() != 0);
-  }
+  // if (F.count() != F.size()) {
+  //   dbg(omega::OutputType::General, printf("# Removing useless final states\n\n"));
+  //   BOOST_ASSERT(F.count() != 0);
+  //   // TODO: remove useless final states
+  // }
 
-  assert(states != 0);
-  assert(alphabet != 0);
-  assert(transitions != 0);
-  assert(count == transitions);
-  assert(I.size() == states);
-  assert(F.size() == states);
-  assert(!I.empty());
-  assert(!F.empty());
+  BOOST_ASSERT(states != 0);
+  BOOST_ASSERT(alphabet != 0);
+  BOOST_ASSERT(transitions != 0);
+  BOOST_ASSERT(count == transitions);
+  BOOST_ASSERT(I.size() == states);
+  BOOST_ASSERT(F.size() == states);
+  BOOST_ASSERT(!I.empty());
+  BOOST_ASSERT(!F.empty());
 
-  if (verbose > GENERAL) {
-    printf("# STATES      %u\n", states);
-    printf("# ALPHABET    %u\n", alphabet);
-    printf("# TRANSITIONS %u\n\n", transitions);
-  }
+  // if (verbose > static_cast<int>(omega::OutputType::General)) {
+  //   printf("# STATES      %u\n", states);
+  //   printf("# ALPHABET    %u\n", alphabet);
+  //   printf("# TRANSITIONS %u\n\n", transitions);
+  // }
 
-  std::unique_ptr<BuchiAutomaton> B = std::make_unique<BuchiAutomaton>(alphabet, states);
+  auto B = std::make_unique<BuchiAutomaton>(alphabet, states);
   B->Init(map);
   B->initial_states = I;
   B->final_states = F;
 
-  if (verbose > GENERAL) {
+  if (verbose > static_cast<int>(omega::OutputType::General)) {
     B->Print();
   }
 
@@ -273,7 +273,7 @@ void Intersection(const std::vector<std::string> &input) {
   auto B = ReadBuchi(input.back(), map_B);
   auto output = Intersection(*A, *B);
 
-  if (verbose > QUIET) {
+  if (verbose > static_cast<int>(omega::OutputType::Quiet)) {
     output->Print();
   }
 }
@@ -286,15 +286,14 @@ void DisjointUnion(const std::vector<std::string> &input) {
   auto B = ReadBuchi(input.back(), map_B);
   auto output = DisjointUnion(*A, *B);
 
-  if (verbose > QUIET) {
+  if (verbose > static_cast<int>(omega::OutputType::Quiet)) {
     output->Print();
   }
 }
 
 void print_help(const char *name) {
-  printf("Omega Automata Version 7.0 2024/05/07\n");
-  printf("Copyright (c) 2011-2024, ");
-  printf("Adrian Trejo Nuñez (atrejo90@gmail.com)\n\n");
+  printf("Omega Automata Version 7.0 2025/01/25\n");
+  printf("Copyright (c) 2011-2025, Adrian Trejo Nuñez (atrejo90@gmail.com)\n\n");
   printf("usage: %s [options] file\n", name);
 }
 
@@ -358,7 +357,7 @@ int main(int argc, char *argv[]) {
      opt::value<size_t>(&num_threads)->default_value(4),
      "Number of Threads to Execute Concurrently")
     ("verbose,v",
-     opt::value<int>(&verbose)->default_value(GENERAL),
+     opt::value<int>(&verbose)->default_value(static_cast<int>(omega::OutputType::General)),
      "Verbosity Level\n  0: Quiet\n  1: General\n  2: Debugging");
 
   // Allow user to type:
@@ -394,7 +393,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (var_map.count("outfile")) {
-    verbose = OUTFILE;
+    verbose = static_cast<int>(omega::OutputType::Outfile);
   }
 
   std::vector<std::string> patterns;
@@ -444,14 +443,11 @@ int main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
   }
 
-  std::unique_ptr<RabinAutomaton> R;
-  {
-    omega::DeterminizeOpts opts;
-    opts.SwapUpdateCreate = var_map.count("swap");
-    R = B->Determinize(map, opts);
-  }
+  omega::DeterminizeOpts opts;
+  opts.SwapUpdateCreate = var_map.count("swap");
+  auto R = B->Determinize(map, opts);
 
-  if (verbose > QUIET) {
+  if (verbose > static_cast<int>(omega::OutputType::Quiet)) {
     R->Print();
   }
 
@@ -463,7 +459,7 @@ int main(int argc, char *argv[]) {
     R->Minimize();
   }
 
-  assert(!R->pairs.empty());
+  BOOST_ASSERT(!R->pairs.empty());
 
   if (var_map.count("interactive")) {
     printf("Interactive mode.\n");

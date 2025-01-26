@@ -58,15 +58,15 @@ void Automaton::Print(void) const {
   for (auto i = 0U; i < num_vertices; i++) {
     auto u = boost::vertex(i, graph);
 
-    dbg(OUTFILE, printf(fmt_vertex, i));
+    dbg(OutputType::Outfile, printf(fmt_vertex, i));
     print_state(state[u]);
-    dbg(OUTFILE, printf(")\n"));
+    dbg(OutputType::Outfile, printf(")\n"));
 
     for (auto [e_itr, e_end] = boost::out_edges(u, graph); e_itr != e_end; ++e_itr) {
       auto v = boost::target(*e_itr, graph);
       auto symbol = label[*e_itr];
 
-      if (verbose == OUTFILE) {
+      if (verbose == static_cast<int>(OutputType::Outfile)) {
         printf(fmt, i, symbol, index[v]);
       } else {
         printf(fmt_v, index[u]);

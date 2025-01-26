@@ -20,6 +20,7 @@
 namespace omega {
 
 // using declarations
+
 // single bit, only leaves can be marked
 enum class Status : uint8_t {
   Unmarked,
@@ -53,7 +54,10 @@ class SafraNode {
     uint32_t name; // v \in {1, 2, ..., 2n}
 
     Status status { Status::Unmarked };
-    boost::dynamic_bitset<> label; // \emptyset != L(v) \subset Q
+    bool marked = false;
+
+    // \emptyset != L(v) \subset Q
+    boost::dynamic_bitset<> label;
 
     std::list<std::unique_ptr<SafraNode>> children;
 };

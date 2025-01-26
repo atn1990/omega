@@ -81,7 +81,6 @@ void SafraNode::Update(const TransitionMap& map, int_type symbol) {
   ITERATE_BITSET(label, i) {
     // T.equal_range returns a pair of iterators that give all values that
     // state i maps to under the given symbol
-    //std::pair<hash_multimap::const_iterator, hash_multimap::const_iterator>
     auto range = map.equal_range({i, symbol});
 
     // if itr.first == itr.second, then there is no transition
@@ -122,7 +121,7 @@ void SafraNode::Create(const boost::dynamic_bitset<>& final_states,
     children.emplace_back(std::move(child));
   }
 
-  // recursively create children for unmarked descendants
+  // Recursively create children for unmarked descendants
   for (auto& child : children) {
     child->Create(final_states, names);
   }
@@ -133,11 +132,11 @@ void SafraNode::Create(const boost::dynamic_bitset<>& final_states,
 // By assumption, once the parent recursively calls HorizontalMerge() on a
 // child, that child's label set is already merged with the left siblings.
 //
-// The parent ensures that a child's set contains no states outside of it's
+// The parent ensures that a child's set contains no states outside of its
 // own label set.
 //
 // A kill set is passed to siblings and children that gets updated as the
-// algorithm runs. When a parent initially calls HorizontalMerge() on it's
+// algorithm runs. When a parent initially calls HorizontalMerge() on its
 // children, the kill set is empty.
 //
 // As a node finishes cleaning its own state set, it adds its own states to
@@ -161,7 +160,7 @@ void SafraNode::HorizontalMerge(boost::dynamic_bitset<>& forbidden) {
   }
 
   // add current label to the kill set
-  forbidden = forbidden | label;
+  forbidden |= label;
 }
 
 // After horizontal merge, some states may be left with empty label sets, so
@@ -188,7 +187,7 @@ void SafraNode::VerticalMerge() {
   boost::dynamic_bitset<> set(label.size());
 
   for (auto& child : children) {
-    set = set | child->label;
+    set |= child->label;
   }
 
   // If the union of the every child label is the parent label, then remove
@@ -223,16 +222,14 @@ size_t SafraNode::FillNames(boost::dynamic_bitset<>& names) {
 
 void SafraNode::PrintNode(std::ostream& os, int level) const {
   std::string indent(2*level, ' ');
-  os << indent << "Name:    " << name << "    ";
-  // os << indent << "Marked:  ";
+  os << indent << "Name:  " << name << "\n";
+  os << indent << "Status:  ";
   if (status == Status::Marked) {
-    // os << "True\n";
     os << "Marked\n";
   } else {
-    // os << "False\n";
     os << "Unmarked\n";
   }
-  os << indent << "Label:   " << label << '\n';
+  os << indent << "Label:  " << label << '\n';
 
   if (!children.empty()) {
     os << indent << "Children:\n";
@@ -384,8 +381,8 @@ void SafraTree::VerticalMerge() {
 }
 
 void SafraTree::PrintTree(std::ostream& os) const {
-  os << "Names:  " << names;
-  os << "\nNodes:  " << num_nodes << "\n";
+  os << "Names:  " << names << "\n";
+  os << "Nodes:  " << num_nodes << "\n";
 
   if (root != nullptr) {
     root->PrintNode(os, 1);

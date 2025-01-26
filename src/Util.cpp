@@ -7,20 +7,17 @@ int verbose = 1;
 std::string dotfile = "";
 size_t num_threads = 1;
 
-/**
-  * Print an integer n in binary with k bits.
- **/
 namespace omega {
 
 void print_state(NodeType s, std::ostream& os) {
   if (s == NodeType::None) {
-    os << "NONE";
+    os << "None";
   } else if (s == NodeType::Initial) {
-    os << "INITIAL";
+    os << "Initial";
   } else if (s == NodeType::Final) {
-    os << "FINAL";
+    os << "Final";
   } else {
-    os << "BOTH";
+    os << "Both";
   }
 }
 

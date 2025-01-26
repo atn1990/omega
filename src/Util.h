@@ -40,9 +40,11 @@ namespace boost {
 } // namespace boost
 
 namespace std {
-  template <typename T, typename U> struct hash<std::pair<T, U>> {
+  template <typename T, typename U>
+  struct hash<std::pair<T, U>> {
     inline size_t operator()(const std::pair<T, U>& p) const {
       size_t seed = 0;
+
       boost::hash_combine(seed, p.first);
       boost::hash_combine(seed, p.second);
 
@@ -50,10 +52,11 @@ namespace std {
     }
   };
 
-  template <typename T>
-  struct hash<std::tuple<T, T, T>> {
-    inline size_t operator()(const std::tuple<T, T, T>& p) const {
+  template <typename T, typename U, typename V>
+  struct hash<std::tuple<T, U, V>> {
+    inline size_t operator()(const std::tuple<T, U, V>& p) const {
       size_t seed = 0;
+
       boost::hash_combine(seed, std::get<0>(p));
       boost::hash_combine(seed, std::get<1>(p));
       boost::hash_combine(seed, std::get<2>(p));
@@ -72,12 +75,13 @@ namespace omega {
 
 // one-step transition map for ECA
 #define MAP(rule, n) (static_cast<uint32_t>((rule) >> (n) & 0x1))
-// Get the i-th least significant bit of n.
-#define GET_BIT(n, i) static_cast<uint32_t>((n) >> (i) & 0x1)
+// Return the i-th least significant bit of n
+#define GET_BIT(n, i) (static_cast<uint32_t>((n) >> (i) & 0x1))
 
 // combine three bits into one number
 // #define Q3(x1, x2, x3) (((x1) << 2) | ((x2) << 1) | (x3))
-#define COMPOSE_3(x1, x2, x3) (((x1) << 2) | ((x2) << 1) | (x3))
+#define COMPOSE_3(x1, x2, x3) \
+  (((x1 & 0x1) << 2) | ((x2 & 0x1) << 1) | (x3 & 0x1))
 
 // simple conditional logging
 // #ifdef DEBUG_BUILD
@@ -93,15 +97,15 @@ namespace omega {
 // #endif
 
 #ifdef DEBUG_BUILD
-#  define dbg(N, x) if (verbose > N) { x; }
+#  define dbg(N, x) if (verbose > static_cast<int>(N)) { x; }
 #else
 #  define dbg(N, x)
 #endif
 
-#define decimal_digits(N) \
-  (static_cast<uint32_t>(N > 1 ? std::ceil(std::log10(N)) : 1))
-#define binary_digits(N) \
-  (static_cast<uint32_t>(N > 1 ? std::ceil(std::log2(N)) : 1))
+#define decimal_digits(n) \
+  (static_cast<uint32_t>(n > 1 ? std::ceil(std::log10(n)) : 1))
+#define binary_digits(n) \
+  (static_cast<uint32_t>(n > 1 ? std::ceil(std::log2(n)) : 1))
 
 #define ITERATE_BITSET(S, i) \
   for (auto i = S.find_first(); i != S.npos; i = S.find_next(i))
@@ -115,12 +119,12 @@ namespace omega {
 
 #define TRIVIAL -1
 
-#define OUTFILE -1
-#define QUIET   0
-#define GENERAL 1
-#define DEBUG   2
+// #define OUTFILE -1
+// #define QUIET    0
+// #define GENERAL  1
+// #define DEBUG    2
 
-enum class OutputType : uint8_t {
+enum class OutputType {
   Outfile,
   Quiet,
   General,
@@ -132,25 +136,30 @@ enum class OutputType : uint8_t {
 // #define FINAL   2
 // #define BOTH    3
 
-enum class NodeType : uint8_t {
-  None,
+enum class NodeType {
+  None = 0,
   Initial,
   Final,
   Both,
-};
-
-#define FINAL_1 1
-#define FINAL_2 2
-
-enum class FinalType : uint8_t {
   Final1,
   Final2,
 };
 
+// #define FINAL_1 1
+// #define FINAL_2 2
+
+// enum class FinalType {
+//   Final1 = 1,
+//   Final2,
+// };
+
 using int_type = uint64_t;
 
+// Print the type of state s to the output stream os.
 void print_state(NodeType s, std::ostream& os = std::cout);
 // void print_state(int_type s, std::ostream& os = std::cout);
+
+// Print an integer n in binary with k bits.
 void print_binary(int_type n, int_type k, std::ostream& os = std::cout);
 
 } // namespace omega
