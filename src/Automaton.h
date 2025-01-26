@@ -66,22 +66,22 @@ using color_map_t =
 using color_t = boost::color_traits<boost::two_bit_color_type>;
 
 class Automaton {
-  public:
-    using size_type = int_type;
+public:
+  using size_type = int_type;
 
-    Automaton(size_type num_alphabet = 0, size_type num_vertices = 0);
+  Automaton(size_type num_alphabet = 0, size_type num_vertices = 0);
 
-    Automaton &operator=(const Automaton &) = delete;
-    Automaton &operator=(Automaton &&) = delete;
+  Automaton &operator=(const Automaton &) = delete;
+  Automaton &operator=(Automaton &&) = delete;
 
-    void Reserve(size_type num_vertices);
-    void Resize();
-    void Print() const;
+  void Reserve(size_type num_vertices);
+  void Resize();
+  void Print() const;
 
-    graph_t graph;
-    size_type num_alphabet;
-    size_type num_vertices;
-    size_type num_edges = 0;
+  graph_t graph;
+  size_type num_alphabet;
+  size_type num_vertices;
+  size_type num_edges = 0;
 };
 
 } // namespace omega

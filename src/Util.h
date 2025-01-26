@@ -119,22 +119,12 @@ namespace omega {
 
 #define TRIVIAL -1
 
-// #define OUTFILE -1
-// #define QUIET    0
-// #define GENERAL  1
-// #define DEBUG    2
-
 enum class OutputType {
   Outfile,
   Quiet,
   General,
   Debug,
 };
-
-// #define NONE    0
-// #define INITIAL 1
-// #define FINAL   2
-// #define BOTH    3
 
 enum class NodeType {
   None = 0,
@@ -144,14 +134,6 @@ enum class NodeType {
   Final1,
   Final2,
 };
-
-// #define FINAL_1 1
-// #define FINAL_2 2
-
-// enum class FinalType {
-//   Final1 = 1,
-//   Final2,
-// };
 
 using int_type = uint64_t;
 

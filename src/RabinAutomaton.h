@@ -16,7 +16,6 @@ namespace omega {
 // Deterministic transition system
 using RabinTransitionMap = std::unordered_map<int_pair, int_type>;
 
-using RabinPair =
 struct RabinPair {
   boost::dynamic_bitset<> left;
   boost::dynamic_bitset<> right;
@@ -52,19 +51,19 @@ struct RabinPair {
 std::ostream& operator<<(std::ostream& os, const RabinPair& p);
 
 class RabinAutomaton : public Automaton {
-  public:
-    std::list<RabinPair> pairs;
+public:
+  std::list<RabinPair> pairs;
 
-    RabinAutomaton(size_type alphabet = 0, size_type vertices = 0);
+  RabinAutomaton(size_type alphabet = 0, size_type vertices = 0);
 
-    void Init(const RabinTransitionMap& map);
+  void Init(const RabinTransitionMap& map);
 
-    bool Universal();
-    void Clean();
-    void Minimize();
+  bool Universal();
+  void Clean();
+  void Minimize();
 
-    void TestUV(const std::string&, const std::string&);
-    void Print() const;
+  void TestUV(const std::string&, const std::string&);
+  void Print() const;
 };
 
 } // namespace omega

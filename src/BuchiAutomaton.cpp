@@ -978,7 +978,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
           // The empty tree is an absorbing state with a self-loop under all
           // transition symbols.
           for (auto j = 0U; j < num_alphabet; j++) {
-            rabin_map.insert({{empty_index, j}, empty_index});
+            rabin_map.insert({{empty_index, j}, static_cast<int_type>(empty_index)});
           }
 
           num_empty = num_alphabet;
@@ -989,7 +989,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
           dbg(OutputType::General, printf("# Empty  %ld\n\n", empty_index));
         }
 
-        rabin_map.insert({{T->index, i}, empty_index});
+        rabin_map.insert({{T->index, i}, static_cast<int_type>(empty_index)});
         num_empty++;
 
         continue;
@@ -1138,7 +1138,6 @@ boost::dynamic_bitset<> Update(
 
 std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
     const TransitionMap& map) const {
-  std::unique_ptr<BuchiAutomaton> B;
   TransitionMap dfa_map;
 
   std::unordered_map<unsigned long, size_type> hash;
@@ -1255,7 +1254,7 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
 
   // dfa_map.insert({{state_list.size(), 0}, 0});
 
-  B = std::make_unique<BuchiAutomaton>(num_alphabet, state_list.size());
+  auto B = std::make_unique<BuchiAutomaton>(num_alphabet, state_list.size());
   B->Init(dfa_map);
 
   B->initial_states.set(0);
