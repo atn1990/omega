@@ -22,10 +22,10 @@ namespace omega {
 // using declarations
 
 // single bit, only leaves can be marked
-enum class Status : uint8_t {
-  Unmarked,
-  Marked,
-};
+// enum class Status : uint8_t {
+//   Unmarked,
+//   Marked,
+// };
 
 class SafraNode {
   public:
@@ -49,11 +49,12 @@ class SafraNode {
     bool operator==(const SafraNode&) const;
     bool operator!=(const SafraNode&) const;
 
-    friend size_t hash_value(const SafraNode&);
+    size_t hash_value() const;
 
-    uint32_t name; // v \in {1, 2, ..., 2n}
+    // v \in {1, 2, ..., 2n}
+    uint32_t name;
 
-    Status status { Status::Unmarked };
+    // Status status { Status::Unmarked };
     bool marked = false;
 
     // \emptyset != L(v) \subset Q
@@ -64,18 +65,17 @@ class SafraNode {
 
 class SafraTree {
   public:
-    SafraTree(int_type num_states, const boost::dynamic_bitset<> &initial_states, const boost::dynamic_bitset<> &final_states);
+    SafraTree(int_type, const boost::dynamic_bitset<> &, const boost::dynamic_bitset<> &);
     SafraTree(const SafraTree& tree);
 
     SafraTree &operator=(const SafraTree&) = delete;
     SafraTree &operator=(SafraTree&&) = delete;
 
-    void Init(const boost::dynamic_bitset<> &initial_states,
-              const boost::dynamic_bitset<> &final_states);
+    // void Init(const boost::dynamic_bitset<> &, const boost::dynamic_bitset<> &);
 
     void Unmark();
-    void Update(const TransitionMap& map, int_type symbol);
-    void Create(const boost::dynamic_bitset<> &final_states);
+    void Update(const TransitionMap&, int_type);
+    void Create(const boost::dynamic_bitset<> &);
     void HorizontalMerge();
     void KillEmpty();
     void VerticalMerge();
@@ -83,7 +83,7 @@ class SafraTree {
     void PrintTree(std::ostream& os = std::cout) const;
 
     bool operator==(const SafraTree& tree) const;
-    friend size_t hash_value(const SafraTree& tree);
+    size_t hash_value() const;
 
     std::unique_ptr<SafraNode> root;
 
@@ -91,21 +91,9 @@ class SafraTree {
 
     // unique identifier for rabin transitions and rabin pairs
     uint32_t index = 0;
-
-  private:
     uint32_t num_nodes = 0;
 };
 
 } // namespace omega
-
-namespace std {
-  template <> struct hash<omega::SafraNode> {
-    size_t operator()(const omega::SafraNode& node) const;
-  };
-  template <> struct hash<omega::SafraTree> {
-    size_t operator()(const omega::SafraTree& tree) const;
-  };
-}
-
 
 #endif // OMEGA_SAFRA_H

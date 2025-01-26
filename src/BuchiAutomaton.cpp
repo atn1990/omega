@@ -12,14 +12,9 @@
 #include <cmath>
 #include <iostream>
 #include <queue>
+#include <source_location>
 #include <unordered_set>
 #include <unordered_map>
-
-#include <atomic>
-#include <condition_variable>
-#include <mutex>
-// #include <shared_mutex>
-#include <thread>
 
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/depth_first_search.hpp>
@@ -31,6 +26,10 @@
 // TODO: See if any macros from here are useful?
 // #include <boost/graph/graph_utility.hpp>
 // #include <boost/graph/iteration_macros.hpp>
+
+namespace logger {
+  bool enabled{true};
+} // namespace logger
 
 namespace omega {
 
@@ -594,25 +593,27 @@ bool BuchiAutomaton::Empty() {
   return trivial;
 }
 
-struct TreePtrHash {
-  size_t operator()(const std::shared_ptr<SafraTree>& tree) const {
-    if (tree == nullptr) {
-      return 0U;
-    }
+inline void who(const std::source_location sloc = std::source_location::current()) {
+  if (logger::enabled) {
+    std::cout << sloc.function_name() << '\n';
+  }
+}
 
-    return hash_value(*tree);
+struct SafraTreeHash {
+  size_t operator()(const std::shared_ptr<SafraTree>& tree) const {
+    // who();
+    return tree->hash_value();
   }
 };
 
-struct TreePtrEq {
+struct SafraTreeEq {
   bool operator()(const std::shared_ptr<SafraTree>& t1,
                   const std::shared_ptr<SafraTree>& t2) const {
-    if (t1 == t2) {
-      return true;
-    } else if (t1 != nullptr && t2 != nullptr) {
+    // who();
+    if (t1 != nullptr && t2 != nullptr) {
       return (*t1) == (*t2);
     } else {
-      return false;
+      return t1 == t2;
     }
   }
 };
@@ -665,35 +666,28 @@ class label_writer {
 // with the hashed trees as vertices. Extract the Rabin pairs from the stored
 // trees.
 std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap &map, DeterminizeOpts opts) const {
-  std::unordered_set<std::shared_ptr<SafraTree>, TreePtrHash, TreePtrEq> set;
-  std::list<std::shared_ptr<SafraTree>> list;
+  std::unordered_set<std::shared_ptr<SafraTree>, SafraTreeHash, SafraTreeEq> set;
   std::queue<std::shared_ptr<SafraTree>> queue;
 
   RabinTransitionMap rabin_map;
 
   auto empty_index = -1L;
 
-  std::atomic<size_type> num_trees(1);
-  std::atomic<size_type> num_empty(0);
+  auto num_empty = 0UL;
+  auto num_trees = 1UL;
 
   auto initial = std::make_shared<SafraTree>(num_vertices, initial_states, final_states);
-  // initial->Init(initial_states, final_states);
 
   // The initial tree has index 0
-  initial->index = 0;
   if (verbose > static_cast<int>(OutputType::General)) {
     printf("# Determinize()\n");
-    printf("Hash:  %zu\n", hash_value(*initial));
     printf("Index:  %u\n", initial->index);
     initial->PrintTree();
   }
 
-  // hash a copy of the initial tree and push it onto the queue
+  // hash the initial tree and push a copy onto the queue
   set.insert(initial);
-  list.push_back(initial);
-
-  auto U = std::make_shared<SafraTree>(*initial);
-  queue.push(U);
+  queue.push(std::make_shared<SafraTree>(*initial));
 
   // Guards the queue and condition variable.
   // std::mutex queue_mutex;
@@ -913,7 +907,6 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
     queue.pop();
 
     if (verbose > static_cast<int>(OutputType::General)) {
-      printf("Hash:  %zu\n", hash_value(*T));
       printf("Index:  %u\n", T->index);
       T->PrintTree();
     }
@@ -970,19 +963,17 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
       // delete empty trees
       if (U->root == nullptr) {
         if (num_empty == 0) {
-          // boost::dynamic_bitset<> L(num_vertices);
-
           U->names.reset();
           // U->marked.reset();
 
           // create a single root node with empty label and unmarked
+          // boost::dynamic_bitset<> L(num_vertices);
           // U->Init(L, ~L);
 
-          empty_index = list.size();
+          empty_index = set.size();
           U->index = empty_index;
 
           set.insert(U);
-          list.push_back(U);
 
           // The empty tree is an absorbing state with a self-loop under all
           // transition symbols.
@@ -991,10 +982,11 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
           }
 
           num_empty = num_alphabet;
+          num_trees += num_alphabet;
 
           dbg(OutputType::General, printf("# Unique  %u\n\n", U->index));
         } else {
-          dbg(OutputType::General, printf("# Empty  %u\n\n", empty_index));
+          dbg(OutputType::General, printf("# Empty  %ld\n\n", empty_index));
         }
 
         rabin_map.insert({{T->index, i}, empty_index});
@@ -1015,41 +1007,38 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
         //  - add it to the hash table of trees
         //  - push it to the queue of pending trees
         //  - add the corresponding transition
-        U->index = list.size();
+        U->index = set.size();
 
         set.insert(U);
-        list.push_back(U);
         queue.push(std::make_shared<SafraTree>(*U));
 
         rabin_map.insert({{T->index, i}, U->index});
         dbg(OutputType::General, printf("# f(%u, %u) -> %u\n\n", T->index, i, U->index));
-
         dbg(OutputType::General, printf("# Unique  %u\n\n", U->index));
       } else {
         // same as a previously computed tree
         // add the corresponding transition
         rabin_map.insert({{T->index, i}, (*itr)->index});
         dbg(OutputType::General, printf("# f(%u, %u) -> %u\n\n", T->index, i, (*itr)->index));
-
         dbg(OutputType::General, printf("# Index  %u\n\n", (*itr)->index));
       }
     }
   }
 
   // double check # trees hashed is the same as # trees indexed
-  BOOST_ASSERT(list.size() == set.size());
+  BOOST_ASSERT(num_trees == rabin_map.size()+1);
 
   if (verbose > static_cast<int>(OutputType::Quiet)) {
-    printf("# Trees Generated    %llu\n", num_trees.load());
+    printf("# Trees Generated    %lu\n", num_trees);
     printf("# Trees Hashed       %zd\n", set.size());
-    printf("# Empty Trees        %llu\n", num_empty.load());
+    printf("# Empty Trees        %lu\n", num_empty);
     printf("# Rabin Transitions  %zd\n\n", rabin_map.size());
   }
 
   if (verbose > static_cast<int>(OutputType::General)) {
     printf("# Trees\n");
 
-    for (auto& tree : list) {
+    for (auto& tree : set) {
       printf("Index: %u\n", tree->index);
       tree->PrintTree();
     }
@@ -1066,7 +1055,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
     printf("\n");
   }
 
-  auto rabin = std::make_unique<RabinAutomaton>(num_alphabet, list.size());
+  auto rabin = std::make_unique<RabinAutomaton>(num_alphabet, set.size());
   rabin->Init(rabin_map);
 
   dbg(OutputType::Quiet, printf("\n# PAIRS\n"));
@@ -1074,15 +1063,15 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   // Rabin left and right
   // L is set of trees in which state i does not appear
   // R is set of trees in which state i is marked
-  boost::dynamic_bitset<> L(list.size());
-  boost::dynamic_bitset<> R(list.size());
+  boost::dynamic_bitset<> L(set.size());
+  boost::dynamic_bitset<> R(set.size());
 
   for (auto i = 0U; i < 2*num_vertices; i++) {
     L.reset();
     R.reset();
 
     // Iterate over all trees and fill the bitsets L and R.
-    for (auto& tree : list) {
+    for (auto& tree : set) {
       if (!tree->names[2*i]) {
         L.set(tree->index);
       } else if (tree->names[2*i+1]) {
@@ -1093,8 +1082,8 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
     // L and R must be disjoint.
     BOOST_ASSERT((L & R).none());
 
-    // If R is not empty, then state i appears marked in at least one tree, so
-    // (L, R) form a valid rabin condition.
+    // If R is not empty, then state i appears marked in at least one tree,
+    // therefore (L, R) form a valid rabin condition.
     if (R.any()) {
       rabin->pairs.push_back({L, R});
 

@@ -52,7 +52,8 @@ SafraNode::SafraNode(const boost::dynamic_bitset<>& label, boost::dynamic_bitset
 // SafraNode Copy Constructor
 SafraNode::SafraNode(const SafraNode& node) {
   name   = node.name;
-  status = node.status;
+  // status = node.status;
+  marked = node.marked;
   label  = node.label;
 
   // make a separate copy of each child node
@@ -63,7 +64,8 @@ SafraNode::SafraNode(const SafraNode& node) {
 
 // Unmarks current node and recursively unmarks its descendants.
 void SafraNode::Unmark() {
-  status = Status::Unmarked;
+  // status = Status::Unmarked;
+  marked = false;
 
   for (auto& child : children) {
     child->Unmark();
@@ -106,7 +108,8 @@ void SafraNode::Create(const boost::dynamic_bitset<>& final_states,
   // If a node is marked, then it was created by its parent during this step
   // since all existing nodes in the tree are unmarked at the start, so don't
   // create another child.
-  if (status == Status::Marked) {
+  // if (status == Status::Marked) {
+  if (marked) {
     return;
   }
 
@@ -116,7 +119,8 @@ void SafraNode::Create(const boost::dynamic_bitset<>& final_states,
 
   if (label.intersects(final_states)) {
     auto child = std::make_unique<SafraNode>(label & final_states, names);
-    child->status = Status::Marked;
+    // child->status = Status::Marked;
+    child->marked = true;
     names.set(2 * child->name + 1);
     children.emplace_back(std::move(child));
   }
@@ -193,7 +197,8 @@ void SafraNode::VerticalMerge() {
   // If the union of the every child label is the parent label, then remove
   // all descendants and mark the parent node.
   if (set == label) {
-    status = Status::Marked;
+    // status = Status::Marked;
+    marked = true;
 
     // The destructor will take care of the descendants.
     children.clear();
@@ -209,7 +214,8 @@ size_t SafraNode::FillNames(boost::dynamic_bitset<>& names) {
   size_t num_nodes = 1;
 
   names.set(2 * name);
-  if (status == Status::Marked) {
+  // if (status == Status::Marked) {
+  if (marked) {
     names.set(2 * name + 1);
   }
 
@@ -223,12 +229,13 @@ size_t SafraNode::FillNames(boost::dynamic_bitset<>& names) {
 void SafraNode::PrintNode(std::ostream& os, int level) const {
   std::string indent(2*level, ' ');
   os << indent << "Name:  " << name << "\n";
-  os << indent << "Status:  ";
-  if (status == Status::Marked) {
-    os << "Marked\n";
-  } else {
-    os << "Unmarked\n";
-  }
+  os << indent << "Marked:  " << std::boolalpha << marked << "\n";
+  // os << indent << "Status:  ";
+  // if (status == Status::Marked) {
+  //   os << "Marked\n";
+  // } else {
+  //   os << "Unmarked\n";
+  // }
   os << indent << "Label:  " << label << '\n';
 
   if (!children.empty()) {
@@ -247,7 +254,8 @@ bool SafraNode::operator==(const SafraNode& node) const {
     return false;
   }
 
-  if (status != node.status) {
+  // if (status != node.status) {
+  if (marked != node.marked) {
     return false;
   }
 
@@ -287,8 +295,11 @@ bool SafraNode::operator!=(const SafraNode& other) const {
 //
 // For an integer i, names[2i] is set if the name is taken in the tree and
 // names[2i+1] is set if the corresponding node is also marked.
-SafraTree::SafraTree(int_type num_states, const boost::dynamic_bitset<>& initial_states, const boost::dynamic_bitset<>& final_states)
-: root(nullptr), names(4 * num_states) {
+SafraTree::SafraTree(
+  int_type num_states,
+  const boost::dynamic_bitset<>& initial_states,
+  const boost::dynamic_bitset<>& final_states)
+  : names(4 * num_states) {
   root = std::make_unique<SafraNode>(initial_states, names);
   num_nodes = 1;
 
@@ -298,12 +309,14 @@ SafraTree::SafraTree(int_type num_states, const boost::dynamic_bitset<>& initial
   // - I & F != 0
 
   if (initial_states.any() && initial_states.is_subset_of(final_states)) {
-    root->status = Status::Marked;
+    // root->status = Status::Marked;
+    root->marked = true;
     names.set(2 * root->name + 1);
   } else if (initial_states.intersects(final_states)) {
     auto child =
       std::make_unique<SafraNode>(initial_states & final_states, names);
-    child->status = Status::Marked;
+    // child->status = Status::Marked;
+    child->marked = true;
     names.set(2 * child->name + 1);
     root->children.emplace_back(std::move(child));
 
@@ -316,31 +329,6 @@ SafraTree::SafraTree(const SafraTree& T) {
   names = T.names;
   index = T.index;
   num_nodes = T.num_nodes;
-}
-
-// Initialize the root of the safra tree to contain the initial states.
-void SafraTree::Init(const boost::dynamic_bitset<>& initial_states,
-                     const boost::dynamic_bitset<>& final_states) {
-  root = std::make_unique<SafraNode>(initial_states, names);
-  num_nodes = 1;
-
-  // initialize root according to conditions of Safra's algorithm three cases:
-  // - I & F == 0
-  // - I & F == I
-  // - I & F != 0
-
-  if (initial_states.any() && initial_states.is_subset_of(final_states)) {
-    root->status = Status::Marked;
-    names.set(2 * root->name + 1);
-  } else if (initial_states.intersects(final_states)) {
-    auto child =
-      std::make_unique<SafraNode>(initial_states & final_states, names);
-    child->status = Status::Marked;
-    names.set(2 * child->name + 1);
-    root->children.emplace_back(std::move(child));
-
-    num_nodes++;
-  }
 }
 
 void SafraTree::Unmark() {
@@ -405,37 +393,30 @@ bool SafraTree::operator==(const SafraTree& tree) const {
   }
 }
 
-size_t hash_value(const SafraNode& node) {
-  size_t seed = node.name;
+size_t SafraNode::hash_value() const {
+  size_t seed = name;
 
-  boost::hash_combine(seed, node.label.to_ulong());
+  // boost::hash_combine(seed, static_cast<size_t>(status));
+  boost::hash_combine(seed, static_cast<size_t>(marked));
+  boost::hash_combine(seed, label.to_ulong());
 
-  for (auto& child : node.children) {
+  for (auto& child : children) {
     boost::hash_combine(seed, child->name);
   }
 
   return seed;
 }
 
-size_t hash_value(const SafraTree& tree) {
-  size_t seed = tree.num_nodes;
+size_t SafraTree::hash_value() const {
+  size_t seed = num_nodes;
 
-  boost::hash_combine(seed, tree.names.to_ulong());
+  boost::hash_combine(seed, names.to_ulong());
 
-  if (tree.root != nullptr) {
-    boost::hash_combine(seed, hash_value(*tree.root));
+  if (root != nullptr) {
+    boost::hash_combine(seed, root->hash_value());
   }
 
   return seed;
 }
 
 } // namespace omega
-
-namespace std {
-  inline size_t hash<omega::SafraNode>::operator()(const omega::SafraNode& node) const {
-    return hash_value(node);
-  }
-  inline size_t hash<omega::SafraTree>::operator()(const omega::SafraTree& tree) const {
-    return hash_value(tree);
-  }
-} // namespace std
