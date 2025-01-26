@@ -17,15 +17,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: cache-boost
-      uses: actions/cache@v3
-      with:
-        path: /usr/local/boost
-        key: boost-${{ runner.os }}-${{ hashFiles('**/boost.lock') }}
-        restore-keys: |
-          boost-${{ runner.os }}
     - name: install-boost
-      if: steps.cache-boost.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
         sudo apt-get install libboost-all-dev
@@ -33,8 +25,3 @@ jobs:
       run: make
     - name: buechi01
       run: ./driver examples/buechi01.aut --verbose=3
-    - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: build
-        path: build/
