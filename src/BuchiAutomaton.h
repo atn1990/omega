@@ -12,7 +12,6 @@
 
 namespace omega {
 
-using DeterminizeOpts =
 struct DeterminizeOpts {
   bool SwapUpdateCreate{false};
 };

@@ -103,12 +103,13 @@ namespace omega {
 #endif
 
 #define decimal_digits(n) \
-  (static_cast<uint32_t>(n > 1 ? std::ceil(std::log10(n)) : 1))
-#define binary_digits(n) \
-  (static_cast<uint32_t>(n > 1 ? std::ceil(std::log2(n)) : 1))
+  (static_cast<uint32_t>((n) > 1 ? std::ceil(std::log10(n)) : 1))
 
-#define ITERATE_BITSET(S, i) \
-  for (auto i = S.find_first(); i != S.npos; i = S.find_next(i))
+#define binary_digits(n) \
+  (static_cast<uint32_t>((n) > 1 ? std::ceil(std::log2(n)) : 1))
+
+#define ITERATE_BITSET(var, bitset) \
+  for (auto (var) = (bitset).find_first(); (var) != (bitset).npos; (var) = (bitset).find_next(var))
 
 #define dbg_var(os, var) \
   (os) << __FILE__ << ":" << __LINE__ << " (" << __func__ << ") " \
@@ -120,7 +121,7 @@ namespace omega {
 #define TRIVIAL -1
 
 enum class OutputType {
-  Outfile,
+  Outfile = 0,
   Quiet,
   General,
   Debug,

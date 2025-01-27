@@ -415,7 +415,7 @@ int main(int argc, char *argv[]) {
   } else {
     if (var_map.count("cycle")) {
       if (var_map["k"].as<int>() == 1) {
-        omega::FixedPoint(var_map["cycle"].as<int>(), patterns);
+        omega::FixedPoint(var_map["cycle"].as<int>());
       } else {
         omega::Cycle(var_map["cycle"].as<int>(), var_map["k"].as<int>());
       }

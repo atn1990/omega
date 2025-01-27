@@ -199,7 +199,7 @@ void RabinAutomaton::Clean() {
     graph_t H(graph);
 
     // for each vertex in L, remove its corresponding edges
-    ITERATE_BITSET(pair->left, i) {
+    ITERATE_BITSET(i, pair->left) {
       boost::clear_vertex(boost::vertex(i, H), H);
     }
 
@@ -242,7 +242,7 @@ void RabinAutomaton::Clean() {
     // on a cycle for some input
 
     bool trivial = true;
-    ITERATE_BITSET(pair->right, i) {
+    ITERATE_BITSET(i, pair->right) {
       dbg(OutputType::General, printf(fmt, i, component[i]));
 
       if (component[i] != TRIVIAL) {
@@ -273,7 +273,7 @@ bool RabinAutomaton::Universal() {
 
   dbg(OutputType::Quiet, printf("# Universal()\n\n"));
 
-  bool trivial = true;
+  auto trivial = true;
   for (auto subset = 0UL; subset < std::exp2(pairs.size()); subset++) {
     graph_t H(graph);
 
@@ -284,7 +284,7 @@ bool RabinAutomaton::Universal() {
 
     dbg(OutputType::General, std::cout << "Pair Set: " << pair_set << '\n' << '\n');
 
-    size_t i_P = 0;
+    auto i_P = 0U;
     // If a vertex appears in any of the specified right conditions, remove it
     // from the graph.
     for (auto& pair : pairs) {
@@ -296,7 +296,7 @@ bool RabinAutomaton::Universal() {
     }
 
     std::vector<int32_t> component(num_vertices);
-    ITERATE_BITSET(clear_set, i) {
+    ITERATE_BITSET(i, clear_set) {
       component[i] = TRIVIAL;
       boost::clear_vertex(boost::vertex(i, H), H);
     }
@@ -336,17 +336,18 @@ bool RabinAutomaton::Universal() {
     }
 
     if (verbose > static_cast<int>(OutputType::General)) {
-      std::printf("\n");
+      printf("\n");
 
       for (auto& list : component_lists) {
         for (auto& u : list) {
           auto i_U = index[u];
-          std::printf(fmt, i_U, component[i_U]);
+          printf(fmt, i_U, component[i_U]);
         }
       }
 
-      std::printf("\n");
+      printf("\n");
 
+      std::cout << "Non-Trivial Components\n";
       for (auto& list : component_lists) {
         for (auto& u : list) {
           auto i_U = index[u];
@@ -354,11 +355,11 @@ bool RabinAutomaton::Universal() {
             break;
           }
 
-          std::printf(fmt, i_U, component[i_U]);
+          printf(fmt, i_U, component[i_U]);
         }
       }
 
-      std::printf("\n");
+      printf("\n");
     }
 
     trivial = true;
@@ -374,8 +375,8 @@ bool RabinAutomaton::Universal() {
       // If no sets are specified, then any non-trivial component is fine.
       if (pair_set.none()) {
         if (verbose > static_cast<int>(OutputType::General)) {
-          printf("Component %d intersects ", c_U);
-          std::cout << pair_set << '\n';
+          printf("Component %d intersects pair set ", c_U);
+          std::cout << pair_set << std::endl;
         }
 
         trivial = false;
@@ -526,9 +527,9 @@ void RabinAutomaton::Minimize() {
 
     for (size_type s = 0; s < num_alphabet; s++) {
       dbg(OutputType::General,
-        std::printf("\n");
+        printf("\n");
         print_binary(s, binary_digits(num_alphabet));
-        std::printf(":"));
+        printf(":"));
 
       for (size_type i = 0; i < num_vertices; i++) {
         auto u = boost::vertex(i, graph);

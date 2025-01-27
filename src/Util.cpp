@@ -16,6 +16,10 @@ void print_state(NodeType s, std::ostream& os) {
     os << "Initial";
   } else if (s == NodeType::Final) {
     os << "Final";
+  } else if (s == NodeType::Final1) {
+    os << "Final1";
+  } else if (s == NodeType::Final2) {
+    os << "Final2";
   } else {
     os << "Both";
   }

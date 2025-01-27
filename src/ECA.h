@@ -15,13 +15,13 @@ namespace omega {
 
 void Tabulate(uint32_t);
 void Canonical(uint8_t);
-bool FixedPoint(uint8_t, const std::vector<std::string>&);
 void Minimal(uint8_t, uint32_t);
 void Run(uint8_t, uint8_t, const std::vector<std::string>&);
 bool RightShift(uint32_t, uint32_t, const std::vector<std::string>&);
 
 bool Injective(uint32_t);
 bool Surjective(uint32_t);
+bool FixedPoint(uint32_t);
 bool Cycle(uint32_t, uint32_t);
 bool Nilpotent(uint32_t, uint32_t);
 bool InDegree(uint32_t, uint32_t);
