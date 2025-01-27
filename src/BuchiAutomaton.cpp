@@ -218,40 +218,32 @@ void BuchiAutomaton::Clean() {
 // custom dfs visitor to compute the accessible part of an automaton
 class dfs_reachable_visitor : public boost::default_dfs_visitor {
   public:
+    dfs_reachable_visitor(boost::dynamic_bitset<>& set) : reachable(set) {}
+
     template <typename Vertex, typename Graph>
     void discover_vertex(Vertex u, const Graph &) {
-      dbg(OutputType::Debug, std::cout << "discovered: " << u << "\n");
+      // dbg(OutputType::Debug, std::cout << "discovered: " << u << "\n");
       reachable.set(u);
     }
 
     template <typename Vertex, typename Graph>
     void finish_vertex(Vertex u, const Graph&) const {
-      dbg(OutputType::Debug, std::cout << "finished: " << u << "\n\n");
+      // dbg(OutputType::Debug, std::cout << "finished: " << u << "\n\n");
     }
 
     template <typename Edge, typename Graph>
     void examine_edge(Edge e, const Graph&) const {
-      dbg(OutputType::Debug, std::cout << "examined: " << e << "\n");
+      // dbg(OutputType::Debug, std::cout << "examined: " << e << "\n");
     }
 
-    // boost::dynamic_bitset<>& get_reachable() {
-    //   return reachable;
-    // }
-
-    boost::dynamic_bitset<> reachable;
-
-  // private:
-  //   boost::dynamic_bitset<> reachable;
+    boost::dynamic_bitset<>& reachable;
 };
 
 // Identify and remove inaccessible states from the underlying graph.
 void BuchiAutomaton::Reachable() {
   // visitor keeps track of all discovered vertices
-  dfs_reachable_visitor visitor;
-  // auto& reachable = visitor.get_reachable();
-  // reachable.resize(num_vertices);
-  visitor.reachable.resize(num_vertices);
-  // visitor.reachable.set();
+  boost::dynamic_bitset<> reachable(num_vertices);
+  dfs_reachable_visitor visitor(reachable);
 
   auto index = boost::get(boost::vertex_index, graph);
   // only search the connected components of initial states
@@ -263,13 +255,13 @@ void BuchiAutomaton::Reachable() {
   }
 
   if (verbose > static_cast<int>(OutputType::Debug)) {
-    std::cout << "Reachable: " << visitor.reachable << "\n\n";
+    std::cout << "Reachable: " << reachable << "\n\n";
   }
 
-  visitor.reachable.flip();
+  reachable.flip();
 
-  if (visitor.reachable.any()) {
-    ITERATE_BITSET(i, visitor.reachable) {
+  if (reachable.any()) {
+    ITERATE_BITSET(i, reachable) {
       auto v = boost::vertex(i, graph);
       boost::clear_vertex(v, graph);
     }

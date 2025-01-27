@@ -232,8 +232,8 @@ void Equality(BuchiAutomaton& M, int_pair pair) {
   auto type = boost::get(boost::vertex_name, M.graph);
 
   // add crash state
-  auto crash = boost::add_vertex(M.graph);
-  type[crash] = NodeType::None;
+  // auto crash = boost::add_vertex(M.graph);
+  // type[crash] = NodeType::None;
 
   auto done = false;
   while (!done) {
@@ -244,15 +244,15 @@ void Equality(BuchiAutomaton& M, int_pair pair) {
       auto v = boost::target(*e_itr, M.graph);
       auto symbol = boost::get(boost::edge_name, M.graph, *e_itr);
 
-      if (v == crash) {
-        continue;
-      }
+      // if (v == crash) {
+      //   continue;
+      // }
 
       if (MAP(symbol, pair.first) != MAP(symbol, pair.second)) {
         boost::remove_edge(*e_itr, M.graph);
 
-        auto [e, added] = boost::add_edge(u, crash, M.graph);
-        label[e] = symbol;
+        // auto [e, added] = boost::add_edge(u, crash, M.graph);
+        // label[e] = symbol;
 
         done = false;
         break;
@@ -280,20 +280,20 @@ void Equality(BuchiAutomaton& M, int_pair pair) {
   //   }
   // }
 
-  for (auto i = 0U; i < M.num_alphabet; i++) {
-    auto [e, added] = boost::add_edge(crash, crash, M.graph);
-    label[e] = i;
-  }
+  // for (auto i = 0U; i < M.num_alphabet; i++) {
+  //   auto [e, added] = boost::add_edge(crash, crash, M.graph);
+  //   label[e] = i;
+  // }
 
   M.Resize();
   if (verbose > static_cast<int>(OutputType::General)) {
     M.Print();
   }
 
-  // M.Reachable();
-  // if (verbose > OutputType::General) {
-  //   M.Print();
-  // }
+  M.Reachable();
+  if (verbose > static_cast<int>(OutputType::General)) {
+    M.Print();
+  }
 }
 
 // Specialized product construction with the inequality automaton.
