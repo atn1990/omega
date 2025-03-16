@@ -20,21 +20,20 @@ namespace omega {
 class SafraNode {
 public:
   SafraNode(const boost::dynamic_bitset<>&, boost::dynamic_bitset<>&);
-  SafraNode(const SafraNode &);
+  SafraNode(const SafraNode&);
+  SafraNode(SafraNode&&) = delete;
 
   SafraNode &operator=(const SafraNode&) = delete;
-  SafraNode &operator=(SafraNode &&) = delete;
+  SafraNode &operator=(SafraNode&&) = delete;
 
   void Unmark();
-  void Update(const TransitionMap& map, int_type symbol);
+  void Update(const TransitionMap&, int_type);
   void Create(const boost::dynamic_bitset<>&, boost::dynamic_bitset<>&);
-  void HorizontalMerge(boost::dynamic_bitset<>& names);
+  void HorizontalMerge(boost::dynamic_bitset<>&);
   void KillEmpty();
-  void VerticalMerge();
+  size_t VerticalMerge(boost::dynamic_bitset<>&);
 
-  size_t FillNames(boost::dynamic_bitset<>& names);
-
-  void PrintNode(std::ostream& os, int level) const;
+  void PrintNode(std::ostream&, int) const;
 
   bool operator==(const SafraNode&) const;
   bool operator!=(const SafraNode&) const;
@@ -54,23 +53,24 @@ public:
 
 class SafraTree {
 public:
-  SafraTree(int_type, const boost::dynamic_bitset<> &, const boost::dynamic_bitset<> &);
-  SafraTree(const SafraTree& tree);
+  SafraTree(int_type, const boost::dynamic_bitset<>&, const boost::dynamic_bitset<>&);
+  SafraTree(const SafraTree&);
+  SafraTree(SafraTree&&);
 
   SafraTree &operator=(const SafraTree&) = delete;
   SafraTree &operator=(SafraTree&&) = delete;
 
   void Unmark();
   void Update(const TransitionMap&, int_type);
-  void Create(const boost::dynamic_bitset<> &);
+  void Create(const boost::dynamic_bitset<>&);
   void HorizontalMerge();
   void KillEmpty();
   void VerticalMerge();
 
-  void PrintTree(std::ostream& os = std::cout) const;
+  void PrintTree(std::ostream& = std::cout) const;
 
-  bool operator==(const SafraTree& tree) const;
-  bool operator!=(const SafraTree& tree) const;
+  bool operator==(const SafraTree&) const;
+  bool operator!=(const SafraTree&) const;
   size_t hash_value() const;
 
   std::unique_ptr<SafraNode> root;

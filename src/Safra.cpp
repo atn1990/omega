@@ -17,8 +17,6 @@ namespace omega {
 // Assigns a node the first unallocated name in the tree.
 SafraNode::SafraNode(const boost::dynamic_bitset<>& label, boost::dynamic_bitset<>& names)
   : label(label) {
-  bool free_name = false;
-
   for (auto i = 0U; i < names.size(); i += 2) {
     if (!names[i]) {
       name = i/2;
@@ -28,17 +26,13 @@ SafraNode::SafraNode(const boost::dynamic_bitset<>& label, boost::dynamic_bitset
     }
   }
 
-  // there should always be a free name
-  BOOST_ASSERT(free_name);
+  // If we reach here, no free name was found
+  throw std::runtime_error("No free name available for SafraNode");
 }
 
 
 // SafraNode copy constructor
-SafraNode::SafraNode(const SafraNode& node) {
-  name   = node.name;
-  marked = node.marked;
-  label  = node.label;
-
+SafraNode::SafraNode(const SafraNode& node) : name(node.name), marked(node.marked), label(node.label) {
   // make a separate copy of each child node
   for (auto& child : node.children) {
     children.emplace_back(std::make_unique<SafraNode>(*child));
@@ -167,7 +161,13 @@ void SafraNode::KillEmpty() {
 }
 
 // Merge child nodes with their parent if the Safra conditions are met.
-void SafraNode::VerticalMerge() {
+size_t SafraNode::VerticalMerge(boost::dynamic_bitset<>& names) {
+  size_t num_nodes = 1;
+  names.set(2*name);
+  if (marked) {
+    names.set(2*name+1);
+  }
+
   boost::dynamic_bitset<> set(label.size());
 
   for (auto& child : children) {
@@ -178,27 +178,14 @@ void SafraNode::VerticalMerge() {
   // all descendants and mark the parent node.
   if (set == label) {
     marked = true;
+    names.set(2*name+1);
 
     // The destructor will take care of the descendants.
     children.clear();
   }
 
   for (auto& child : children) {
-    child->VerticalMerge();
-  }
-}
-
-// Finds all names in use and those that are marked in the tree.
-size_t SafraNode::FillNames(boost::dynamic_bitset<>& names) {
-  size_t num_nodes = 1;
-
-  names.set(2 * name);
-  if (marked) {
-    names.set(2 * name + 1);
-  }
-
-  for (auto& child : children) {
-    num_nodes += child->FillNames(names);
+    num_nodes += child->VerticalMerge(names);
   }
 
   return num_nodes;
@@ -300,6 +287,8 @@ SafraTree::SafraTree(const SafraTree& T) {
   num_nodes = T.num_nodes;
 }
 
+SafraTree::SafraTree(SafraTree&& T) : root(std::move(T.root)), names(std::move(T.names)), index(T.index), num_nodes(T.num_nodes) {}
+
 void SafraTree::Unmark() {
   root->Unmark();
 }
@@ -322,19 +311,17 @@ void SafraTree::HorizontalMerge() {
 
 void SafraTree::KillEmpty() {
   if (root->label.none()) {
-    root = nullptr;
+    root.reset(nullptr);
   } else {
     root->KillEmpty();
   }
 }
 
 void SafraTree::VerticalMerge() {
-  root->VerticalMerge();
-
-  // once nodes are merged, go through and find all names still present and/or
+  // once nodes are merged, go through and find all names still present or
   // marked in the tree
   names.reset();
-  num_nodes = root->FillNames(names);
+  num_nodes = root->VerticalMerge(names);
 }
 
 void SafraTree::PrintTree(std::ostream& os) const {
