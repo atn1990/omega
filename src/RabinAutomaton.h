@@ -37,7 +37,7 @@ struct RabinPair {
   void Resize(size_type num_bits) {
     Reset();
     left.resize(num_bits);
-    right.reset(num_bits);
+    right.resize(num_bits);
   }
 
   bool operator==(const RabinPair& p) const {
@@ -52,7 +52,7 @@ std::ostream& operator<<(std::ostream& os, const RabinPair& p);
 
 class RabinAutomaton : public Automaton {
 public:
-  std::list<RabinPair> pairs;
+  std::vector<RabinPair> pairs;
 
   RabinAutomaton(size_type alphabet = 0, size_type vertices = 0);
 
