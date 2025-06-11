@@ -150,11 +150,16 @@ BOOST_AUTO_TEST_CASE(InDegreeTest) {
 BOOST_AUTO_TEST_CASE(BaseTest) {
   BOOST_TEST(omega::FixedPoint(0) == true);
   BOOST_TEST(omega::FixedPoint(255) == true);
+  BOOST_TEST(omega::FixedPoint(110) == true);
   BOOST_TEST(omega::Injective(0) == false);
   BOOST_TEST(omega::Injective(255) == false);
   BOOST_TEST(omega::Surjective(0) == false);
   BOOST_TEST(omega::Surjective(255) == false);
   BOOST_TEST(omega::Cycle(0, 2) == false);
   BOOST_TEST(omega::Cycle(255, 2) == false);
-  // BOOST_TEST(omega::Nilpotent(0, 1) == true);
+  BOOST_TEST(omega::Cycle(110, 2) == true);
+  BOOST_TEST(omega::Cycle(110, 3) == true);
+  BOOST_TEST(omega::Nilpotent(0, 2) == true);
+  BOOST_TEST(omega::Nilpotent(255, 2) == true);
+  BOOST_TEST(omega::Nilpotent(110, 2) == false);
 }

@@ -306,9 +306,9 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   dbg(OutputType::Debug, printf("# (N = %llu, S = %llu)\n\n", M.num_vertices, M.num_alphabet));
   dbg(OutputType::Debug, printf("# Initial States\n"));
 
-  auto width = decimal_digits(M.num_vertices);
+  auto vertex_width = decimal_digits(M.num_vertices);
   char fmt_vrtx[MAXLINE];
-  snprintf(fmt_vrtx, MAXLINE, "(%%%du, %%d)\n", width);
+  snprintf(fmt_vrtx, MAXLINE, "(%%%du, %%d)\n", vertex_width);
 
   std::queue<int_pair> queue;
   std::queue<graph_t::vertex_descriptor> vertex_queue;
@@ -347,7 +347,9 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   dbg(OutputType::Debug, printf("\n"));
 
   char fmt_edge[MAXLINE];
-  snprintf(fmt_edge, MAXLINE, "  -->  (%%%du, %%d)", width);
+  snprintf(fmt_edge, MAXLINE, "  -->  (%%%du, %%d)", vertex_width);
+
+  auto edge_width = binary_digits(P->num_alphabet);
 
   while (!queue.empty()) {
     auto [i_M, c_M] = queue.front();
@@ -373,7 +375,7 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
 
       if (verbose > static_cast<int>(OutputType::Debug)) {
         printf("  ");
-        print_binary(symbol, binary_digits(P->num_alphabet));
+        print_binary(symbol, edge_width);
         printf(fmt_edge, i_T, c_T);
       }
 
@@ -410,7 +412,7 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   P->Resize();
 
   // Remove all initial states from the set of final states.
-  P->final_states &= ~P->initial_states;
+  // P->final_states &= ~P->initial_states;
 
   dbg(OutputType::General, P->Print());
 
@@ -820,15 +822,18 @@ bool Cycle(uint32_t rule, uint32_t k) {
   // finally, construct x_k -> x_1 and x_1 -> x_1 from x_1 -> x_k
 
   dbg(OutputType::General, printf("# x0 -> x1\n"));
-  auto M = GlobalMap(rule, k, {0, 1}, opts);
+  auto M = GlobalMap(rule, k+1, {0, 1}, opts);
 
   for (auto i = 1U; i < k; i++) {
-    dbg(OutputType::General, printf("# x%u -> x%u\n", i, (i+1)%k));
-    auto N = GlobalMap(rule, k, {i, (i+1)%k}, opts);
+    dbg(OutputType::General, printf("# x%u -> x%u\n", i, i+1));
+    auto N = GlobalMap(rule, k+1, {i, i+1}, opts);
 
-    dbg(OutputType::General, printf("# x0 -> x%u\n", (i+1)%k));
+    dbg(OutputType::General, printf("# x0 -> x%u\n", i+1));
     M = Intersection(*M, *N);
   }
+
+  dbg(OutputType::General, printf("# x0 == x%u\n", k));
+  Equality(*M, {0, k});
 
   // make sure cycle is a proper k-cycle
   for (auto i = 1U; i < k; i++) {

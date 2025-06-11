@@ -217,26 +217,26 @@ void BuchiAutomaton::Clean() {
 
 // custom dfs visitor to compute the accessible part of an automaton
 class dfs_reachable_visitor : public boost::default_dfs_visitor {
-  public:
-    dfs_reachable_visitor(boost::dynamic_bitset<>& set) : reachable(set) {}
+public:
+  dfs_reachable_visitor(boost::dynamic_bitset<>& set) : reachable(set) {}
 
-    template <typename Vertex, typename Graph>
-    void discover_vertex(Vertex u, const Graph &) {
-      // dbg(OutputType::Debug, std::cout << "discovered: " << u << "\n");
-      reachable.set(u);
-    }
+  template <typename Vertex, typename Graph>
+  void discover_vertex(Vertex u, const Graph &) {
+    // dbg(OutputType::Debug, std::cout << "discovered: " << u << "\n");
+    reachable.set(u);
+  }
 
-    template <typename Vertex, typename Graph>
-    void finish_vertex(Vertex u, const Graph&) const {
-      // dbg(OutputType::Debug, std::cout << "finished: " << u << "\n\n");
-    }
+  template <typename Vertex, typename Graph>
+  void finish_vertex(Vertex u, const Graph&) const {
+    // dbg(OutputType::Debug, std::cout << "finished: " << u << "\n\n");
+  }
 
-    template <typename Edge, typename Graph>
-    void examine_edge(Edge e, const Graph&) const {
-      // dbg(OutputType::Debug, std::cout << "examined: " << e << "\n");
-    }
+  template <typename Edge, typename Graph>
+  void examine_edge(Edge e, const Graph&) const {
+    // dbg(OutputType::Debug, std::cout << "examined: " << e << "\n");
+  }
 
-    boost::dynamic_bitset<>& reachable;
+  boost::dynamic_bitset<>& reachable;
 };
 
 // Identify and remove inaccessible states from the underlying graph.
@@ -280,6 +280,10 @@ void BuchiAutomaton::Reachable() {
 // A label is a sequence of bits corresponding to input on a set of tracks.
 // Removing a track may result in a non-deterministic transition system.
 void BuchiAutomaton::ProjectLabel() {
+  if (verbose > static_cast<int>(OutputType::General)) {
+    printf("# ProjectLabel()\n");
+  }
+
   // TODO: Should num_alphabet be a power of two?
   BOOST_ASSERT(num_alphabet % 2 == 0);
 
@@ -1645,7 +1649,9 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
   }
 
   C->Resize();
+  dbg(OutputType::Debug, C->Print());
 
+  C->Clean();
   dbg(OutputType::General, C->Print());
 
   return C;
