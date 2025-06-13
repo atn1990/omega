@@ -134,13 +134,13 @@ BOOST_AUTO_TEST_CASE(ECATest1, * boost::unit_test::disabled()) {
   omega::Run(110, 1, {});
 }
 
-BOOST_AUTO_TEST_CASE(InjectiveTest) {
-  BOOST_TEST(omega::Injective(110) == false);
-}
+// BOOST_AUTO_TEST_CASE(InjectiveTest) {
+//   BOOST_TEST(omega::Injective(110) == false);
+// }
 
-BOOST_AUTO_TEST_CASE(SurjectiveTest) {
-  BOOST_TEST(omega::Surjective(110) == false);
-}
+// BOOST_AUTO_TEST_CASE(SurjectiveTest) {
+//   BOOST_TEST(omega::Surjective(110) == false);
+// }
 
 // BOOST_FIXTURE_TEST_CASE(InDegreeTest, MultiThreaded) {
 BOOST_AUTO_TEST_CASE(InDegreeTest) {
@@ -148,13 +148,18 @@ BOOST_AUTO_TEST_CASE(InDegreeTest) {
 }
 
 BOOST_AUTO_TEST_CASE(BaseTest) {
+  BOOST_TEST(omega::Injective(0) == false);
+  BOOST_TEST(omega::Injective(255) == false);
+  BOOST_TEST(omega::Injective(110) == false);
+  BOOST_TEST(omega::Surjective(0) == false);
+  BOOST_TEST(omega::Surjective(255) == false);
+  BOOST_TEST(omega::Surjective(110) == false);
   BOOST_TEST(omega::FixedPoint(0) == true);
   BOOST_TEST(omega::FixedPoint(255) == true);
   BOOST_TEST(omega::FixedPoint(110) == true);
-  BOOST_TEST(omega::Injective(0) == false);
-  BOOST_TEST(omega::Injective(255) == false);
-  BOOST_TEST(omega::Surjective(0) == false);
-  BOOST_TEST(omega::Surjective(255) == false);
+  BOOST_TEST(omega::Cycle(0, 1) == true);
+  BOOST_TEST(omega::Cycle(255, 1) == true);
+  BOOST_TEST(omega::Cycle(110, 1) == true);
   BOOST_TEST(omega::Cycle(0, 2) == false);
   BOOST_TEST(omega::Cycle(255, 2) == false);
   BOOST_TEST(omega::Cycle(110, 2) == true);

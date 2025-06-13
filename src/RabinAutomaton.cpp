@@ -182,8 +182,8 @@ void RabinAutomaton::TestUV(const std::string& U, const std::string& V) {
 }
 
 /**
-  * Removes useless or redundant Rabin pairs. A Rabin pair (L, R) is may be
-  * deleted if after removing all vertices from L, there is no non-trivial
+  * Removes useless or redundant Rabin pairs. A Rabin pair (L, R) may be
+  * deleted if after removing all vertices of L, there is no non-trivial
   * strongly connected component intersecting R.
  **/
 void RabinAutomaton::Clean() {
@@ -323,14 +323,7 @@ bool RabinAutomaton::Universal() {
     }
 
     if (verbose > static_cast<int>(OutputType::General)) {
-      for (auto& list : component_lists) {
-        for (auto& u : list) {
-          auto idx_u = index[u];
-          printf(fmt, idx_u, component[idx_u]);
-        }
-      }
-
-      printf("\nNon-Trivial Components\n");
+      printf("Non-Trivial Components\n");
       for (auto& list : component_lists) {
         for (auto& u : list) {
           auto idx_u = index[u];
@@ -387,7 +380,7 @@ bool RabinAutomaton::Universal() {
       // This component intersects every specified left Rabin set.
       if (!universal) {
         if (verbose > static_cast<int>(OutputType::General)) {
-          printf("Component %d intersects ", comp);
+          printf("Component %d intersects pair set ", comp);
           std::cout << pair_set << std::endl;
         }
 

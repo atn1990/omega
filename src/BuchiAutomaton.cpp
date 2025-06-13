@@ -441,6 +441,11 @@ void BuchiAutomaton::FindCycle(
 // Checks if the language recognized by the automaton is empty.
 bool BuchiAutomaton::Empty() {
   dbg(OutputType::Quiet, printf("# EMPTY\n\n"));
+  if (final_states.none()) {
+    // If there are no final states, the language is empty.
+    dbg(OutputType::Quiet, printf("The language is empty\n"));
+    return true;
+  }
 
   // Generate the strongly connected components using Tarjan's algorithm.
   std::vector<int> component(num_vertices);

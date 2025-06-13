@@ -310,9 +310,8 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   char fmt_vrtx[MAXLINE];
   snprintf(fmt_vrtx, MAXLINE, "(%%%du, %%d)\n", vertex_width);
 
-  std::queue<int_pair> queue;
-  std::queue<graph_t::vertex_descriptor> vertex_queue;
   std::unordered_map<int_pair, graph_t::vertex_descriptor> map;
+  std::queue<std::tuple<int_type, int_type, graph_t::vertex_descriptor>> queue;
 
   auto label = boost::get(boost::edge_name, P->graph);
   auto type = boost::get(boost::vertex_name, P->graph);
@@ -320,28 +319,23 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   auto label_M = boost::get(boost::edge_name, M.graph);
   auto index_M = boost::get(boost::vertex_index, M.graph);
 
-  auto EQ = "EQ";
-  auto NE = "NE";
-
-  auto iEQ = 0UL;
-  auto iNE = 1UL;
+  auto EQ = false;
+  auto NE = true;
 
   ITERATE_BITSET(i, M.initial_states) {
-    // Add a vertex to the graph representing the state (i, NodeType::Initial).
+    // Add a vertex to the graph representing the state (i, iEQ).
     auto u = boost::add_vertex(P->graph);
 
-    // Store (i, NodeType::Initial) -> u in the map.
-    auto p = std::make_pair(i, iEQ);
-    map.insert({p, u});
+    // Store (i, EQ) -> u in the map.
+    map.insert({{i, EQ}, u});
 
     // Fill in the graph as a BFS from the initial vertices.
-    queue.push(std::move(p));
-    vertex_queue.push(u);
+    queue.push({i, EQ, u});
 
-    // The state (i, NodeType::Initial) is both initial and final.
-    type[u] = NodeType::Both;
+    // The state (i, EQ) is an initial state in P.
+    type[u] = NodeType::Initial;
 
-    dbg(OutputType::Debug, printf(fmt_vrtx, i, iEQ));
+    dbg(OutputType::Debug, printf(fmt_vrtx, i, EQ));
   }
 
   dbg(OutputType::Debug, printf("\n"));
@@ -352,54 +346,47 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   auto edge_width = binary_digits(P->num_alphabet);
 
   while (!queue.empty()) {
-    auto [i_M, c_M] = queue.front();
-    auto u = vertex_queue.front();
-
+    auto [source, source_component, u] = queue.front();
     queue.pop();
-    vertex_queue.pop();
 
-    dbg(OutputType::Debug, printf(fmt_vrtx, i_M, c_M));
-    auto u_M = boost::vertex(i_M, M.graph);
+    dbg(OutputType::Debug, printf(fmt_vrtx, source, source_component));
 
-    for (auto [e_itr, e_end] = boost::out_edges(u_M, M.graph); e_itr != e_end; ++e_itr) {
+    for (auto [e_itr, e_end] = boost::out_edges(boost::vertex(source, M.graph), M.graph); e_itr != e_end; ++e_itr) {
       auto symbol = label_M[*e_itr];
 
-      auto t_M = boost::target(*e_itr, M.graph);
-      auto i_T = index_M[t_M];
-      auto c_T = c_M;
+      auto target = index_M[boost::target(*e_itr, M.graph)];
+      auto component = source_component;
 
       // If the tracks are not equal, go into the second component.
       if (GET_BIT(symbol, pair.first) != GET_BIT(symbol, pair.second)) {
-        c_T = iNE;
+        component = NE;
       }
 
       if (verbose > static_cast<int>(OutputType::Debug)) {
         printf("  ");
         print_binary(symbol, edge_width);
-        printf(fmt_edge, i_T, c_T);
+        printf(fmt_edge, target, component);
       }
 
-      auto p = std::make_pair(i_T, c_T);
-      auto itr = map.find(p);
+      auto itr = map.find({target, component});
 
       // Add a new vertex to the product machine.
       if (itr == map.end()) {
         auto v = boost::add_vertex(P->graph);
 
-        if (c_T == iNE && M.final_states.test(i_T)) {
+        if (component == NE && M.final_states.test(target)) {
           type[v] = NodeType::Final;
         } else {
           type[v] = NodeType::None;
         }
 
         dbg(OutputType::Debug, printf("  *"));
-        itr = map.insert({p, v}).first;
+        itr = map.insert({{target, component}, v}).first;
 
-        queue.push(std::move(p));
-        vertex_queue.push(v);
+        queue.push({target, component, v});
       }
 
-      // Add a new edge to the target vertex.
+      // Add a new edge from u to the target vertex.
       auto [e, added] = boost::add_edge(u, itr->second, P->graph);
       label[e] = symbol;
 
@@ -812,7 +799,7 @@ bool FixedPoint(uint32_t rule) {
 // Furthermore, the cycle must be proper, i.e., not a d-cycle where d is a divisor of k.
 bool Cycle(uint32_t rule, uint32_t k) {
   BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
-  BOOST_ASSERT_MSG(k >= 2, "Parameter k must be at least 2");
+  BOOST_ASSERT_MSG(k >= 1, "Parameter k must be at least 1");
 
   GlobalMapOpts opts;
   opts.full = false;
@@ -821,6 +808,7 @@ bool Cycle(uint32_t rule, uint32_t k) {
   // for i = {2, ..., k-1}, construct x_i -> x_{i+1} and x_1 -> x_{i+1}
   // finally, construct x_k -> x_1 and x_1 -> x_1 from x_1 -> x_k
 
+  dbg(OutputType::General, printf("# Cycle(%d, %d)\n", rule, k));
   dbg(OutputType::General, printf("# x0 -> x1\n"));
   auto M = GlobalMap(rule, k+1, {0, 1}, opts);
 
@@ -962,8 +950,8 @@ bool Nilpotent(uint32_t rule, uint32_t k) {
 //
 // A one-way infinite elementary cellular automaton has in-degree k if and
 // only if there exist k distinct configurations x_1, ..., x_k evolving to a
-// single configuration y after one single application of the global map, and
-// any other configuration u does not evolve to y.
+// single configuration y after one application of the global map, and any
+// other configuration u does not evolve to y.
 
 // \exists x_1, ..., x_k, y, \forall u
 // [(x_1 -> y) && ... && (x_k -> y) && (x_1 != x_2) && ... && (x_{k-1} != x_k)
@@ -986,6 +974,7 @@ bool InDegree(uint32_t rule, uint32_t k) {
   GlobalMapOpts opts;
   // opts.full = false;
   opts.negated = true;
+  dbg(OutputType::General, printf("# InDegree %d %d\n", rule, k));
   dbg(OutputType::General, printf("# u -/> y\n"));
   auto M = GlobalMap(rule, k+2, {k+1, 0}, opts);
 
@@ -1028,9 +1017,9 @@ bool InDegree(uint32_t rule, uint32_t k) {
 
   dbg(OutputType::General, R->Print());
 
-  R->Minimize();
-  R->Clean();
-  R->Minimize();
+  // R->Minimize();
+  // R->Clean();
+  // R->Minimize();
 
   bool result = !R->Universal();
   if (verbose > static_cast<int>(OutputType::General)) {
