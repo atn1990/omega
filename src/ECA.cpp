@@ -213,10 +213,7 @@ std::unique_ptr<BuchiAutomaton> Equality(uint32_t k, int_pair pair) {
     }
   }
 
-  // M->final_states.set(0);
-
   M->Resize();
-
   if (verbose > static_cast<int>(OutputType::General)) {
     M->Print();
   }
@@ -224,66 +221,14 @@ std::unique_ptr<BuchiAutomaton> Equality(uint32_t k, int_pair pair) {
   return M;
 }
 
-// Modify a Büchi automaton to ensure that two tracks are equal.
+// Modify a Büchi automaton to ensure that two specified tracks are equal.
 void Equality(BuchiAutomaton& M, int_pair pair) {
-  // auto N = std::make_unique<BuchiAutomaton>(M.num_alphabet, M.num_vertices);
-
   auto label = boost::get(boost::edge_name, M.graph);
-  auto type = boost::get(boost::vertex_name, M.graph);
 
-  // add crash state
-  // auto crash = boost::add_vertex(M.graph);
-  // type[crash] = NodeType::None;
-
-  auto done = false;
-  while (!done) {
-    done = true;
-
-    for (auto [e_itr, e_end] = boost::edges(M.graph); e_itr != e_end; ++e_itr) {
-      auto u = boost::source(*e_itr, M.graph);
-      auto v = boost::target(*e_itr, M.graph);
-      auto symbol = boost::get(boost::edge_name, M.graph, *e_itr);
-
-      // if (v == crash) {
-      //   continue;
-      // }
-
-      if (MAP(symbol, pair.first) != MAP(symbol, pair.second)) {
-        boost::remove_edge(*e_itr, M.graph);
-
-        // auto [e, added] = boost::add_edge(u, crash, M.graph);
-        // label[e] = symbol;
-
-        done = false;
-        break;
-      }
-    }
-  }
-
-  // auto [e_itr, e_end] = boost::edges(M.graph);
-  // for (auto e_next = e_itr; e_itr != e_end; e_itr = e_next) {
-  //   ++e_next;
-
-  //   auto u = boost::source(*e_itr, M.graph);
-  //   auto v = boost::target(*e_itr, M.graph);
-  //   auto symbol = boost::get(boost::edge_name, M.graph, *e_itr);
-
-  //   if (v == crash) {
-  //     continue;
-  //   }
-
-  //   if (MAP(symbol, pair.first) != MAP(symbol, pair.second)) {
-  //     boost::remove_edge(*e_itr, M.graph);
-
-  //     auto [e, b] = boost::add_edge(u, crash, M.graph);
-  //     label[e] = symbol;
-  //   }
-  // }
-
-  // for (auto i = 0U; i < M.num_alphabet; i++) {
-  //   auto [e, added] = boost::add_edge(crash, crash, M.graph);
-  //   label[e] = i;
-  // }
+  boost::remove_edge_if([&pair, &label](const auto& edge) {
+    auto symbol = label[edge];
+    return MAP(symbol, pair.first) != MAP(symbol, pair.second);
+  }, M.graph);
 
   M.Resize();
   if (verbose > static_cast<int>(OutputType::General)) {
