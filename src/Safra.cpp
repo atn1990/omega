@@ -354,10 +354,14 @@ bool SafraTree::operator!=(const SafraTree& tree) const {
 }
 
 size_t SafraNode::hash_value() const {
-  size_t seed = name;
+  size_t seed = 0;
 
+  boost::hash_combine(seed, name);
   boost::hash_combine(seed, static_cast<size_t>(marked));
-  boost::hash_combine(seed, label.to_ulong());
+
+  std::string str;
+  boost::to_string(label, str);
+  boost::hash_combine(seed, str);
 
   for (auto& child : children) {
     boost::hash_combine(seed, child->name);
@@ -369,7 +373,9 @@ size_t SafraNode::hash_value() const {
 size_t SafraTree::hash_value() const {
   size_t seed = num_nodes;
 
-  boost::hash_combine(seed, names.to_ulong());
+  std::string str;
+  boost::to_string(names, str);
+  boost::hash_combine(seed, str);
 
   if (root != nullptr) {
     boost::hash_combine(seed, root->hash_value());
