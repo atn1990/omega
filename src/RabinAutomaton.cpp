@@ -273,7 +273,7 @@ bool RabinAutomaton::Universal() {
 
   dbg(OutputType::Quiet, printf("# Universal()\n\n"));
 
-  auto universal = true;
+  auto universal = false;
   for (auto subset = 0UL; subset < std::exp2(pairs.size()); subset++) {
     graph_t H(graph);
     auto index = boost::get(boost::vertex_index, H);

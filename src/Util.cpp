@@ -26,8 +26,12 @@ void print_state(NodeType s, std::ostream& os) {
 }
 
 void print_binary(int_type n, int_type k, std::ostream& os) {
-  boost::dynamic_bitset<> set(k, n);
-  os << set;
+  for (auto i = 0UL; i < k; i++) {
+    os << (n & 0x1);
+    n >>= 1;
+  }
+  // boost::dynamic_bitset<> set(k, n);
+  // os << set;
 }
 
 }  // namespace omega

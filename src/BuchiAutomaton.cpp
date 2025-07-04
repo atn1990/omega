@@ -566,7 +566,7 @@ bool BuchiAutomaton::Empty() {
 
         auto tracks = binary_digits(num_alphabet);
         // Output the labels of the edges visited.
-        for (auto k = 0UL; k < tracks; k++) {
+        for (auto k = 0; k < tracks; k++) {
           // Show the phantom zero.
           if (k < tracks - 1) {
             printf("0  ");
@@ -575,7 +575,7 @@ bool BuchiAutomaton::Empty() {
           }
 
           for (auto l : path) {
-            printf("%d  ", MAP(l, k));
+            printf("%llu  ", MAP(l, k));
           }
 
           printf("\n");
@@ -1363,7 +1363,7 @@ void BuchiAutomaton::Minimize() {
   size_type num_rounds = 0;
   size_type num_states = 0;
 
-  snprintf(fmt, MAXLINE, "  %%%dd", std::max(decimal_digits(num_vertices), 2U));
+  snprintf(fmt, MAXLINE, "  %%%dd", std::max(decimal_digits(num_vertices), 2));
 
   std::vector<int> prev(num_vertices);
   std::vector<int> temp(num_vertices);
@@ -1506,11 +1506,8 @@ void BuchiAutomaton::Minimize() {
   }
 }
 
-/**
-  * Given two Büchi automata, produce the interection automaton.
-  *
-  * Uses a modified pebbling construction similar to intersection of DFAs.
- **/
+// Given two Büchi automata, produce the interection automaton.
+// Uses a modified pebbling construction similar to intersection of DFAs.
 std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const BuchiAutomaton& B) {
   auto C = std::make_unique<BuchiAutomaton>(std::min(A.num_alphabet, B.num_alphabet));
 

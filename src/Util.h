@@ -68,20 +68,22 @@ namespace std {
 
 namespace omega {
 
-// The upper and lower (k-1) bits of k-bit numbers define the source and
-// target of de Bruijn map, respectively.
+using int_type = uint64_t;
+
+// The upper and lower (k-1) bits of k-bit numbers define the source and target of de Bruijn map, respectively.
 #define SOURCE(x) ((x) >> 1)
 #define TARGET(x, k) ((x) & ((1 << (2 * (k))) - 1))
 
 // one-step transition map for ECA
-#define MAP(rule, n) (static_cast<uint32_t>((rule) >> (n) & 0x1))
+#define MAP(rule, n) (static_cast<int_type>(((rule) >> (n)) & 0x1))
+
 // Return the i-th least significant bit of n
-#define GET_BIT(n, i) (static_cast<uint32_t>((n) >> (i) & 0x1))
+#define GET_BIT(n, i) (static_cast<int_type>(((n) >> (i)) & 0x1))
 
 // combine three bits into one number
 // #define Q3(x1, x2, x3) (((x1) << 2) | ((x2) << 1) | (x3))
 #define COMPOSE_3(x1, x2, x3) \
-  (((x1 & 0x1) << 2) | ((x2 & 0x1) << 1) | (x3 & 0x1))
+  ((((x1) & 0x1) << 2) | (((x2) & 0x1) << 1) | ((x3) & 0x1))
 
 // simple conditional logging
 // #ifdef DEBUG_BUILD
@@ -103,10 +105,10 @@ namespace omega {
 #endif
 
 #define decimal_digits(n) \
-  (static_cast<uint32_t>((n) > 1 ? std::ceil(std::log10(n)) : 1))
+  ((n) > 1 ? static_cast<int>(std::ceil(std::log10(n))) : 1)
 
 #define binary_digits(n) \
-  (static_cast<uint32_t>((n) > 1 ? std::ceil(std::log2(n)) : 1))
+  ((n) > 1 ? static_cast<int>(std::ceil(std::log2(n))) : 1)
 
 #define ITERATE_BITSET(var, bitset) \
   for (auto (var) = (bitset).find_first(); (var) != (bitset).npos; (var) = (bitset).find_next(var))
@@ -135,8 +137,6 @@ enum class NodeType {
   Final1,
   Final2,
 };
-
-using int_type = uint64_t;
 
 // Print the type of state s to the output stream os.
 void print_state(NodeType s, std::ostream& os = std::cout);
