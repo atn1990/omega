@@ -243,6 +243,7 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   auto P = std::make_unique<BuchiAutomaton>(M.num_alphabet);
   P->Reserve(2 * M.num_vertices);
 
+  dbg(OutputType::Debug, printf("# Inequality(%llu, %llu)\n", pair.first, pair.second));
   dbg(OutputType::Debug, printf("# (N = %llu, S = %llu)\n\n", M.num_vertices, M.num_alphabet));
   dbg(OutputType::Debug, printf("# Initial States\n"));
 
@@ -250,8 +251,8 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   char fmt_vrtx[MAXLINE];
   snprintf(fmt_vrtx, MAXLINE, "(%%%du, %%d)\n", vertex_width);
 
-  std::unordered_map<int_pair, graph_t::vertex_descriptor> map;
-  std::queue<std::tuple<int_type, int_type, graph_t::vertex_descriptor>> queue;
+  std::unordered_map<std::pair<int_type, bool>, graph_t::vertex_descriptor> map;
+  std::queue<std::tuple<int_type, bool, graph_t::vertex_descriptor>> queue;
 
   auto label = boost::get(boost::edge_name, P->graph);
   auto type = boost::get(boost::vertex_name, P->graph);
@@ -263,7 +264,7 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   auto NE = true;
 
   ITERATE_BITSET(i, M.initial_states) {
-    // Add a vertex to the graph representing the state (i, iEQ).
+    // Add a vertex to the graph representing the state (i, EQ).
     auto u = boost::add_vertex(P->graph);
 
     // Store (i, EQ) -> u in the map.
@@ -312,15 +313,16 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
 
       // Add a new vertex to the product machine.
       if (itr == map.end()) {
+        dbg(OutputType::Debug, printf("  *"));
+
         auto v = boost::add_vertex(P->graph);
 
-        if (component == NE && M.final_states.test(target)) {
+        if (component == NE && M.final_states[target]) {
           type[v] = NodeType::Final;
         } else {
           type[v] = NodeType::None;
         }
 
-        dbg(OutputType::Debug, printf("  *"));
         itr = map.insert({{target, component}, v}).first;
 
         queue.push({target, component, v});
@@ -590,19 +592,17 @@ std::unique_ptr<BuchiAutomaton> Finite(uint32_t k, uint32_t n, const std::string
 // 2: final state for track2
 // 3: crash state (only if full is true)
 // The transitions are defined such that:
-// - From the initial state, it transitions to state 1 based on the first track's symbol.
-// - From state 1, it transitions to state 2 if the second track's symbol matches the previous symbol of the first track.
-// - If the second track's symbol does not match,
-//   it transitions to the crash state if full is true, or remains in state 1
-//   if full is false.
-// - From state 2, it transitions to state 1 based on the second track's symbol,
-//   or to the crash state if full is true and the symbol does not match.
+// - From the initial state, it transitions to either state 1 or 2 based on the first track's symbol.
+// - From state 1, it transitions to state 1 or 2 if the second track's symbol matches the previous symbol of the first track.
+// - If the second track's symbol does not match, it transitions to the crash state if full is true.
+// - Similarly, from state 2, it transitions to state 1 based on the second track's symbol, or to the crash state if full is true and the symbol does not match.
 // - The crash state absorbs all transitions, meaning any symbol will loop back to itself.
 std::unique_ptr<BuchiAutomaton> RightShift(uint32_t k, int_pair pair, bool full = false) {
   auto num_states = 4;
   if (!full) {
     num_states--;
   }
+
   auto M = std::make_unique<BuchiAutomaton>(std::exp2(k), num_states);
 
   auto label = boost::get(boost::edge_name, M->graph);
@@ -611,6 +611,7 @@ std::unique_ptr<BuchiAutomaton> RightShift(uint32_t k, int_pair pair, bool full 
   // initial state
   auto initial = boost::vertex(0, M->graph);
   type[initial] = NodeType::Initial;
+  M->initial_states.set(0);
 
   // crash state
   graph_t::vertex_descriptor x;
@@ -623,12 +624,12 @@ std::unique_ptr<BuchiAutomaton> RightShift(uint32_t k, int_pair pair, bool full 
     auto n = GET_BIT(i, pair.first);
     auto u = boost::vertex(n+1, M->graph);
 
-    // edge from initial state
+    // add edge from initial state
     auto [e, added] = boost::add_edge(initial, u, M->graph);
     label[e] = i;
 
-    // edge on crash state
     if (full) {
+      // add edge on crash state
       auto [e, added] = boost::add_edge(x, x, M->graph);
       label[e] = i;
     }
@@ -654,8 +655,7 @@ std::unique_ptr<BuchiAutomaton> RightShift(uint32_t k, int_pair pair, bool full 
   }
 
   M->Resize();
-  M->Clean();
-  // M->initial_states.set(0);
+  // M->Clean();
 
   if (verbose > static_cast<int>(OutputType::General)) {
     M->Print();
@@ -683,6 +683,7 @@ bool RightShift(uint32_t rule, uint32_t k, const std::vector<std::string>& p) {
   }
 
   auto N = RightShift(k+1, {0, k});
+  // N = LeftShift(k+1, {0, k});
   M = Intersection(*M, *N);
 
   M = Inequality(*M, {0, k});
@@ -1290,7 +1291,7 @@ void Run(uint32_t r, uint32_t k, const std::vector<std::string>& p) {
   // Predecessor(r, k, p);
   printf("%d  ", InDegree(r, k));
   printf("%d  ", Nilpotent(r, k));
-  // printf("%d  ", RightShift(r, k, {}));
+  printf("%d  ", RightShift(r, k, {}));
   // Minimal(r, k);
   // Cover(r, nullptr);
   std::cout << std::endl;
@@ -1311,6 +1312,7 @@ void Tabulate(uint32_t k) {
   // z.emplace_back("00111");
   // z.emplace_back("01011");
   // z.emplace_back("01111");
+
   // for (auto i = 0; i < 16; i++) {
   //   printf("%3u  ", i);
   //   printf("%d  ", binary_digits(i));
@@ -1349,7 +1351,11 @@ void Tabulate(uint32_t k) {
     // Predecessor(i, 3, z);
     // Predecessor(i, 4, x);
     // Predecessor(i, 5, x);
-    // printf("%d  ", RightShift(i, 2, {}));
+    printf("%d  ", RightShift(i, 1, {}));
+    printf("%d  ", RightShift(i, 2, {}));
+    printf("%d  ", RightShift(i, 3, {}));
+    // printf("%d  ", RightShift(i, 4, {}));
+    // printf("%d  ", RightShift(i, 5, {}));
     // printf("%d  ", RightShift(i, 3, y);
     // printf("%d  ", RightShift(i, 4, y);
     // printf("%d  ", RightShift(i, 5, y);
