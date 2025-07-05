@@ -12,9 +12,7 @@
 
 #include <boost/dynamic_bitset.hpp>
 
-using omega::BuchiAutomaton;
-using omega::TransitionMap;
-using omega::RabinPair;
+using namespace omega;
 
 boost::dynamic_bitset<> make_bitset(std::string s) {
   return boost::dynamic_bitset<>(std::move(s));
@@ -90,7 +88,6 @@ BOOST_AUTO_TEST_CASE(DeterminizeTest2) {
   B.Print();
 
   auto R = B.Determinize(m);
-  // R->Print();
 
   BOOST_TEST(R->num_vertices == 3);
   BOOST_TEST(R->num_edges == 6);
@@ -131,49 +128,49 @@ BOOST_AUTO_TEST_CASE(DeterminizeTest3) {
 }
 
 BOOST_AUTO_TEST_CASE(ECATest1, * boost::unit_test::disabled()) {
-  omega::Run(110, 1, {});
+  Run(110, 1, {});
 }
 
 // BOOST_AUTO_TEST_CASE(InjectiveTest) {
-//   BOOST_TEST(omega::Injective(110) == false);
+//   BOOST_TEST(Injective(110) == false);
 // }
 
 // BOOST_AUTO_TEST_CASE(SurjectiveTest) {
-//   BOOST_TEST(omega::Surjective(110) == false);
+//   BOOST_TEST(Surjective(110) == false);
 // }
 
 // BOOST_FIXTURE_TEST_CASE(InDegreeTest, MultiThreaded) {
 BOOST_AUTO_TEST_CASE(InDegreeTest) {
-  BOOST_TEST(omega::InDegree(110, 2) == false);
+  BOOST_TEST(InDegree(110, 2) == false);
 }
 
 BOOST_AUTO_TEST_CASE(BaseTest) {
-  BOOST_TEST(omega::Injective(0) == false);
-  BOOST_TEST(omega::Injective(255) == false);
-  BOOST_TEST(omega::Injective(110) == false);
-  BOOST_TEST(omega::Surjective(0) == false);
-  BOOST_TEST(omega::Surjective(255) == false);
-  BOOST_TEST(omega::Surjective(110) == false);
-  BOOST_TEST(omega::FixedPoint(0) == true);
-  BOOST_TEST(omega::FixedPoint(255) == true);
-  BOOST_TEST(omega::FixedPoint(110) == true);
-  BOOST_TEST(omega::Cycle(0, 1) == true);
-  BOOST_TEST(omega::Cycle(255, 1) == true);
-  BOOST_TEST(omega::Cycle(110, 1) == true);
-  BOOST_TEST(omega::Cycle(0, 2) == false);
-  BOOST_TEST(omega::Cycle(255, 2) == false);
-  BOOST_TEST(omega::Cycle(110, 2) == true);
-  BOOST_TEST(omega::Cycle(110, 3) == true);
-  BOOST_TEST(omega::Cycle(110, 5) == true);
-  BOOST_TEST(omega::Cycle(110, 7) == true);
-  BOOST_TEST(omega::Nilpotent(0, 1) == false);
-  BOOST_TEST(omega::Nilpotent(255, 1) == false);
-  BOOST_TEST(omega::Nilpotent(204, 1) == true);
-  BOOST_TEST(omega::Nilpotent(0, 2) == true);
-  BOOST_TEST(omega::Nilpotent(255, 2) == true);
-  BOOST_TEST(omega::Nilpotent(110, 2) == false);
-  BOOST_TEST(omega::RightShift(0, 1, {}) == false);
-  BOOST_TEST(omega::RightShift(255, 1, {}) == false);
-  BOOST_TEST(omega::RightShift(16, 1, {}) == true);
-  BOOST_TEST(omega::RightShift(17, 1, {}) == true);
+  BOOST_TEST(Injective(0) == false);
+  BOOST_TEST(Injective(255) == false);
+  BOOST_TEST(Injective(110) == false);
+  BOOST_TEST(Surjective(0) == false);
+  BOOST_TEST(Surjective(255) == false);
+  BOOST_TEST(Surjective(110) == false);
+  BOOST_TEST(FixedPoint(0) == true);
+  BOOST_TEST(FixedPoint(255) == true);
+  BOOST_TEST(FixedPoint(110) == true);
+  BOOST_TEST(Cycle(0, 1) == true);
+  BOOST_TEST(Cycle(255, 1) == true);
+  BOOST_TEST(Cycle(110, 1) == true);
+  BOOST_TEST(Cycle(0, 2) == false);
+  BOOST_TEST(Cycle(255, 2) == false);
+  BOOST_TEST(Cycle(110, 2) == true);
+  BOOST_TEST(Cycle(110, 3) == true);
+  BOOST_TEST(Cycle(110, 5) == true);
+  BOOST_TEST(Cycle(110, 7) == true);
+  BOOST_TEST(Nilpotent(0, 1) == false);
+  BOOST_TEST(Nilpotent(255, 1) == false);
+  BOOST_TEST(Nilpotent(204, 1) == true);
+  BOOST_TEST(Nilpotent(0, 2) == true);
+  BOOST_TEST(Nilpotent(255, 2) == true);
+  BOOST_TEST(Nilpotent(110, 2) == false);
+  BOOST_TEST(Shift(0, 1, ShiftType::Right) == false);
+  BOOST_TEST(Shift(255, 1, ShiftType::Right) == false);
+  BOOST_TEST(Shift(16, 1, ShiftType::Right) == true);
+  // BOOST_TEST(Shift(1, 1, ShiftType::Left) == true);
 }

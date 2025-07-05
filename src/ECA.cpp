@@ -58,13 +58,13 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
   auto M = std::make_unique<BuchiAutomaton>(std::exp2(k), num_states);
 
   if (verbose > static_cast<int>(OutputType::General)) {
-    printf("# GLOBAL MAP\n");
+    printf("# GlobalMap(");
     if (opts.negated) {
-      printf("x%llu -/> x%llu", pair.first, pair.second);
+      printf("x%llu -/> x%llu)", pair.first, pair.second);
     } else {
-      printf("x%llu --> x%llu", pair.first, pair.second);
+      printf("x%llu --> x%llu)", pair.first, pair.second);
     }
-    printf("  (N = %d, k = %llu, S = 2^k = %llu)\n\n", num_states, k, M->num_alphabet);
+    printf("  N = %d, k = %llu, S = 2^k = %llu\n\n", num_states, k, M->num_alphabet);
   }
 
   auto type = boost::get(boost::vertex_name, M->graph);
@@ -579,9 +579,10 @@ std::unique_ptr<BuchiAutomaton> Finite(uint32_t k, uint32_t n, const std::string
   return Intersection(*M, *N);
 }
 
-// Construct a Büchi automaton that checks if track1 is a right shift of track2.
+// Construct a Büchi automaton that checks if track1 is a left or right shift of track2.
 // @param k: the number of tracks
 // @param pair: a pair of indices indicating which tracks to compare
+// @param shift: a ShiftType indicating whether to perform a left or right shift
 // @param full: if true, the automaton will include a crash state that absorbs all transitions
 //              if false, the automaton will not include the crash state
 // @return: a unique pointer to the constructed Büchi automaton
@@ -597,7 +598,13 @@ std::unique_ptr<BuchiAutomaton> Finite(uint32_t k, uint32_t n, const std::string
 // - If the second track's symbol does not match, it transitions to the crash state if full is true.
 // - Similarly, from state 2, it transitions to state 1 based on the second track's symbol, or to the crash state if full is true and the symbol does not match.
 // - The crash state absorbs all transitions, meaning any symbol will loop back to itself.
-std::unique_ptr<BuchiAutomaton> RightShift(uint32_t k, int_pair pair, bool full = false) {
+std::unique_ptr<BuchiAutomaton> Shift(uint32_t k, int_pair pair, ShiftType shift, bool full = false) {
+  if (shift == ShiftType::Left) {
+    dbg(OutputType::Debug, printf("# LeftShift(%llu, %llu)\n", pair.first, pair.second));
+  } else {
+    dbg(OutputType::Debug, printf("# RightShift(%llu, %llu)\n", pair.first, pair.second));
+  }
+
   auto num_states = 4;
   if (!full) {
     num_states--;
@@ -614,14 +621,18 @@ std::unique_ptr<BuchiAutomaton> RightShift(uint32_t k, int_pair pair, bool full 
   M->initial_states.set(0);
 
   // crash state
-  graph_t::vertex_descriptor x;
+  auto crash = initial;
   if (full) {
-    x = boost::vertex(3, M->graph);
-    type[x] = NodeType::None;
+    crash = boost::vertex(3, M->graph);
+    type[crash] = NodeType::None;
   }
 
   for (auto i = 0UL; i < M->num_alphabet; i++) {
     auto n = GET_BIT(i, pair.first);
+    if (shift == ShiftType::Left) {
+      n = GET_BIT(i, pair.second);
+    }
+
     auto u = boost::vertex(n+1, M->graph);
 
     // add edge from initial state
@@ -630,7 +641,7 @@ std::unique_ptr<BuchiAutomaton> RightShift(uint32_t k, int_pair pair, bool full 
 
     if (full) {
       // add edge on crash state
-      auto [e, added] = boost::add_edge(x, x, M->graph);
+      auto [e, added] = boost::add_edge(crash, crash, M->graph);
       label[e] = i;
     }
   }
@@ -641,21 +652,33 @@ std::unique_ptr<BuchiAutomaton> RightShift(uint32_t k, int_pair pair, bool full 
 
     for (auto j = 0UL; j < M->num_alphabet; j++) {
       auto n = GET_BIT(j, pair.first);
+      if (shift == ShiftType::Left) {
+        n = GET_BIT(j, pair.second);
+      }
       auto v = boost::vertex(n+1, M->graph);
 
       // previous symbol of x matches the current symbol of y
-      if (GET_BIT(j, pair.second) == i) {
-        auto [e, added] = boost::add_edge(u, v, M->graph);
-        label[e] = j;
-      } else if (full) {
-        auto [e, added] = boost::add_edge(u, x, M->graph);
-        label[e] = j;
+      if (shift == ShiftType::Left) {
+        if (GET_BIT(j, pair.first) == i) {
+          auto [e, added] = boost::add_edge(u, v, M->graph);
+          label[e] = j;
+        } else if (full) {
+          auto [e, added] = boost::add_edge(u, crash, M->graph);
+          label[e] = j;
+        }
+      } else {
+        if (GET_BIT(j, pair.second) == i) {
+          auto [e, added] = boost::add_edge(u, v, M->graph);
+          label[e] = j;
+        } else if (full) {
+          auto [e, added] = boost::add_edge(u, crash, M->graph);
+          label[e] = j;
+        }
       }
     }
   }
 
   M->Resize();
-  // M->Clean();
 
   if (verbose > static_cast<int>(OutputType::General)) {
     M->Print();
@@ -664,29 +687,44 @@ std::unique_ptr<BuchiAutomaton> RightShift(uint32_t k, int_pair pair, bool full 
   return M;
 }
 
-bool RightShift(uint32_t rule, uint32_t k, const std::vector<std::string>& p) {
+std::string to_string(ShiftType shift) {
+  switch (shift) {
+    case ShiftType::Left:
+      return "Left";
+    case ShiftType::Right:
+      return "Right";
+  }
+}
+
+bool Shift(uint32_t rule, uint32_t k, ShiftType shift) {
   BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
   BOOST_ASSERT_MSG(k >= 1, "Parameter k must be at least 1");
 
-  dbg(OutputType::General, printf("# RightShift(%d, %d)\n", rule, k));
+  dbg(OutputType::General, printf("# Shift(%d, %d, %s)\n", rule, k, to_string(shift).c_str()));
 
   GlobalMapOpts opts;
   opts.full = false;
 
-  dbg(OutputType::Debug, printf("# x0 -> x1\n"));
   auto M = GlobalMap(rule, k+1, {0, 1}, opts);
 
   for (auto i = 1U; i < k; i++) {
-    dbg(OutputType::Debug, printf("# x%d -> x%d\n", i, i+1));
     auto N = GlobalMap(rule, k+1, {i, i+1}, opts);
+
+    dbg(OutputType::Debug, printf("# x0 -> x%d\n", i+1));
     M = Intersection(*M, *N);
   }
 
-  auto N = RightShift(k+1, {0, k});
-  // N = LeftShift(k+1, {0, k});
-  M = Intersection(*M, *N);
-
   M = Inequality(*M, {0, k});
+
+  std::unique_ptr<BuchiAutomaton> S;
+  if (shift == ShiftType::Left) {
+    S = Shift(k+1, {0, k}, shift, true);
+  } else {
+    S = Shift(k+1, {0, k}, shift);
+  }
+
+  M = Intersection(*M, *S);
+
 
   // printf("%d  ", !M->Empty());
 
@@ -702,7 +740,7 @@ bool RightShift(uint32_t rule, uint32_t k, const std::vector<std::string>& p) {
 
   auto result = !M->Empty();
   if (verbose > static_cast<int>(OutputType::General)) {
-    std::cout << "RightShift(" << rule << ", " << k << "): " << std::boolalpha << result << std::endl;
+    std::cout << "Shift(" << rule << ", " << k << ", " << to_string(shift) << "): " << std::boolalpha << result << std::endl;
   }
   return result;
 }
@@ -1291,7 +1329,8 @@ void Run(uint32_t r, uint32_t k, const std::vector<std::string>& p) {
   // Predecessor(r, k, p);
   printf("%d  ", InDegree(r, k));
   printf("%d  ", Nilpotent(r, k));
-  printf("%d  ", RightShift(r, k, {}));
+  printf("%d  ", Shift(r, k, ShiftType::Left));
+  printf("%d  ", Shift(r, k, ShiftType::Right));
   // Minimal(r, k);
   // Cover(r, nullptr);
   std::cout << std::endl;
@@ -1351,9 +1390,9 @@ void Tabulate(uint32_t k) {
     // Predecessor(i, 3, z);
     // Predecessor(i, 4, x);
     // Predecessor(i, 5, x);
-    printf("%d  ", RightShift(i, 1, {}));
-    printf("%d  ", RightShift(i, 2, {}));
-    printf("%d  ", RightShift(i, 3, {}));
+    printf("%d  ", Shift(i, 1, ShiftType::Right));
+    printf("%d  ", Shift(i, 2, ShiftType::Right));
+    printf("%d  ", Shift(i, 3, ShiftType::Right));
     // printf("%d  ", RightShift(i, 4, {}));
     // printf("%d  ", RightShift(i, 5, {}));
     // printf("%d  ", RightShift(i, 3, y);
