@@ -347,27 +347,25 @@ std::unique_ptr<TransitionMap> BuchiAutomaton::Map() const {
   return map;
 }
 
-// Display a path in a graph ending at a target vertex v using the vertices in
-// the predecessor list p, generated from a breadth first search traversal of
-// the underlying transition graph.
-void BuchiAutomaton::PrintPath(
+// Display a path in a graph ending at a target vertex `v` using the vertices in the predecessor list `pred`, generated from a breadth first search traversal of the underlying transition graph.
+void BuchiAutomaton::FindPath(
     std::vector<graph_t::vertex_descriptor>& pred,
     graph_t::vertex_descriptor& v,
-    std::vector<uint8_t>& path,
+    std::vector<int_type>& path,
     char* fmt_s,
-    char* fmt_t) {
-  auto index  = boost::get(boost::vertex_index, graph);
+    char* fmt_v) {
+  auto index = boost::get(boost::vertex_index, graph);
   auto symbol = boost::get(boost::edge_name, graph);
 
   if (pred[v] == v) {
     return;
   }
 
-  PrintPath(pred, pred[v], path, fmt_s, fmt_t);
+  FindPath(pred, pred[v], path, fmt_s, fmt_v);
 
   for (auto [itr, end] = boost::in_edges(v, graph); itr != end; ++itr) {
     auto s = boost::source(*itr, graph);
-    if (index[s] != index[pred[v]]) {
+    if (s != pred[v]) {
       continue;
     }
 
@@ -375,37 +373,36 @@ void BuchiAutomaton::PrintPath(
 
     printf(fmt_s, index[s]);
     print_binary(symbol[*itr], binary_digits(num_alphabet));
-    printf(fmt_t, index[v]);
+    printf(fmt_v, index[v]);
 
     return;
   }
 }
 
-// Find a cycle within a strongly connected component containing the source
-// vertex s.
+// Find a cycle within a strongly connected component containing the source vertex s.
 void BuchiAutomaton::FindCycle(
     graph_t::vertex_descriptor& s,
     std::vector<int>& component,
-    std::vector<uint8_t>& path,
+    std::vector<int_type>& path,
     char* fmt_s,
-    char* fmt_t) {
+    char* fmt_v) {
   auto vertex_index = boost::get(boost::vertex_index, graph);
   auto symbol = boost::get(boost::edge_name, graph);
+  auto width = binary_digits(num_alphabet);
 
   auto [e, loop] = boost::edge(s, s, graph);
   if (loop) {
     path.push_back(symbol[e]);
 
     printf(fmt_s, vertex_index[s]);
-    print_binary(symbol[e], binary_digits(num_alphabet));
-    printf(fmt_t, vertex_index[s]);
+    print_binary(symbol[e], width);
+    printf(fmt_v, vertex_index[s]);
 
     return;
   }
 
-  // Since s is in a strongly connected component and it doesn't have a
-  // self-loop, there must exist some neighbor t in the same component.
-  graph_t::vertex_descriptor t;
+  // Since s is in a strongly connected component and it doesn't have a self-loop, there must exist some neighbor t in the same component.
+  graph_t::vertex_descriptor t = s;
 
   for (auto [itr, end] = boost::out_edges(s, graph); itr != end; ++itr) {
     t = boost::target(*itr, graph);
@@ -414,8 +411,8 @@ void BuchiAutomaton::FindCycle(
       path.push_back(symbol[*itr]);
 
       printf(fmt_s, vertex_index[s]);
-      print_binary(symbol[*itr], binary_digits(num_alphabet));
-      printf(fmt_t, vertex_index[t]);
+      print_binary(symbol[*itr], width);
+      printf(fmt_v, vertex_index[t]);
 
       break;
     }
@@ -430,12 +427,15 @@ void BuchiAutomaton::FindCycle(
 
   boost::breadth_first_search(graph, t, boost::visitor(visitor));
 
-  PrintPath(pred, s, path, fmt_s, fmt_t);
+  pred[t] = t;
+
+  FindPath(pred, s, path, fmt_s, fmt_v);
 }
 
 // Checks if the language recognized by the automaton is empty.
 bool BuchiAutomaton::Empty() {
-  dbg(OutputType::Quiet, printf("# EMPTY\n\n"));
+  dbg(OutputType::Quiet, printf("# Empty()\n\n"));
+
   if (final_states.none()) {
     // If there are no final states, the language is empty.
     dbg(OutputType::Quiet, printf("The language is empty\n"));
@@ -480,8 +480,7 @@ bool BuchiAutomaton::Empty() {
       auto& u = list[0];
       auto [e, loop] = boost::edge(u, u, graph);
 
-      // A component of exactly one final state is trivial unless the state has
-      // a self loop.
+      // A component of exactly one final state is trivial unless the state has a self loop.
       if (!loop) {
         component[vertex_index[u]] = TRIVIAL;
       }
@@ -489,7 +488,7 @@ bool BuchiAutomaton::Empty() {
   }
 
   if (verbose > static_cast<int>(OutputType::General)) {
-    std::cout << "\nNon-Trivial Components\n";
+    printf("\nNon-Trivial Components\n");
 
     bool all_trivial = true;
 
@@ -505,10 +504,11 @@ bool BuchiAutomaton::Empty() {
     }
 
     if (all_trivial) {
-      std::cout << "All components are trivial\n";
+      printf("All components are trivial\n");
+      return true;
     }
 
-    std::cout << '\n';
+    printf("\n");
   }
 
   char fmt_s[MAXLINE];
@@ -517,7 +517,7 @@ bool BuchiAutomaton::Empty() {
   char fmt_t[MAXLINE];
   snprintf(fmt_t, MAXLINE, ")  -->  %%%du\n", decimal_digits(num_vertices));
 
-  bool trivial = true;
+  bool empty = true;
   ITERATE_BITSET(i, initial_states) {
     auto u = boost::vertex(i, graph);
 
@@ -545,14 +545,13 @@ bool BuchiAutomaton::Empty() {
         continue;
       }
 
-      // There is a path from an initial state to a final state in a
-      // non-trivial strongly connected component.
+      // There is a path from an initial state to a final state in a non-trivial strongly connected component.
       if (verbose > static_cast<int>(OutputType::General)) {
-        std::vector<uint8_t> path;
+        std::vector<int_type> path;
 
         // Output the path from the initial state to the final state.
         printf("%zd  -->  %zd\n", i, j);
-        PrintPath(pred, v, path, fmt_s, fmt_t);
+        FindPath(pred, v, path, fmt_s, fmt_t);
 
         // Output a cycle in the strongly connected component.
         printf("\n%zd  -->  %zd\n", j, j);
@@ -579,10 +578,10 @@ bool BuchiAutomaton::Empty() {
         printf("\n");
       }
 
-      trivial = false;
+      empty = false;
     }
 
-    if (!trivial) {
+    if (!empty) {
       break;
     }
   }
@@ -591,7 +590,7 @@ bool BuchiAutomaton::Empty() {
     std::cout << std::endl;
   }
 
-  return trivial;
+  return empty;
 }
 
 inline void who(const std::source_location sloc = std::source_location::current()) {
@@ -1505,9 +1504,9 @@ void BuchiAutomaton::Minimize() {
 // Uses a modified pebbling construction similar to intersection of DFAs.
 std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const BuchiAutomaton& B) {
   auto C = std::make_unique<BuchiAutomaton>(std::min(A.num_alphabet, B.num_alphabet));
+  auto width = binary_digits(C->num_alphabet);
 
-  // Speed up graph construction by reserving enough space for vertices to
-  // avoid resizing.
+  // Speed up graph construction by reserving enough space for vertices to avoid resizing.
   C->Reserve(3*A.num_vertices*B.num_vertices);
 
   auto label_C = boost::get(boost::edge_name, C->graph);
@@ -1520,10 +1519,9 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
   auto index_B = boost::get(boost::vertex_index, B.graph);
 
   // map: (i, j, component) -> vertex_descriptor
-  std::unordered_map<int_triple, graph_t::vertex_descriptor> map;
+  std::unordered_map<std::tuple<int_type, int_type, NodeType>, graph_t::vertex_descriptor> map;
 
-  std::queue<int_triple> queue;
-  std::queue<graph_t::vertex_descriptor> vertex_queue;
+  std::queue<std::tuple<int_type, int_type, NodeType, graph_t::vertex_descriptor>> queue;
 
   dbg(OutputType::Debug, printf("# N(A) = %llu, N(B) = %llu, S = %llu\n", A.num_vertices, B.num_vertices, C->num_alphabet));
   dbg(OutputType::Debug, printf("# Initial States\n"));
@@ -1534,20 +1532,18 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
 
   ITERATE_BITSET(i, A.initial_states) {
     ITERATE_BITSET(j, B.initial_states) {
-      // Add a new vertex to the graph representing the state
-      // (i, j, NodeType::Initial).
-      auto u_C = boost::add_vertex(C->graph);
+      // Add a new vertex to the graph representing the state (i, j, NodeType::Initial).
+      auto u = boost::add_vertex(C->graph);
 
       // Store (i, j, NodeType::Initial) -> u in the map.
-      auto t = std::make_tuple(i, j, static_cast<int>(NodeType::Initial));
-      map.insert({t, u_C});
+      // auto t = std::make_tuple(i, j, static_cast<int>(NodeType::Initial));
+      map.insert({{i, j, NodeType::Initial}, u});
 
       // Fill in the graph as a BFS from the initial states.
-      queue.push(std::move(t));
-      vertex_queue.push(u_C);
+      queue.push({i, j, NodeType::Initial, u});
 
-      // The state (a, b, NodeType::Initial) is both initial and final.
-      state_C[u_C] = NodeType::Initial;
+      // The state (i, j, NodeType::Initial) is both initial and final.
+      state_C[u] = NodeType::Initial;
 
       dbg(OutputType::Debug, printf(fmt_vrtx, i, j));
       dbg(OutputType::Debug, print_state(NodeType::Initial));
@@ -1565,73 +1561,68 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
       decimal_digits(A.num_vertices), decimal_digits(B.num_vertices));
 
   while (!queue.empty()) {
-    auto [i_A, i_B, component] = queue.front();
-    auto u_C = vertex_queue.front();
-    auto nodetype = static_cast<NodeType>(component);
-
+    auto [idx_A, idx_B, component, u_C] = queue.front();
     queue.pop();
-    vertex_queue.pop();
 
-    dbg(OutputType::Debug, printf(fmt_vrtx, i_A, i_B));
-    dbg(OutputType::Debug, print_state(static_cast<NodeType>(component)));
+    dbg(OutputType::Debug, printf(fmt_vrtx, idx_A, idx_B));
+    dbg(OutputType::Debug, print_state(component));
     dbg(OutputType::Debug, printf(")\n"));
 
-    auto u_A = boost::vertex(i_A, A.graph);
-    auto u_B = boost::vertex(i_B, B.graph);
+    auto u_A = boost::vertex(idx_A, A.graph);
+    auto u_B = boost::vertex(idx_B, B.graph);
 
-    if (nodetype == NodeType::Initial) {
+    if (component == NodeType::Initial) {
       // NodeType::Initial -> NodeType::Final1 on next input
-      nodetype = NodeType::Final1;
-    } else if (nodetype == NodeType::Final1 && A.final_states[i_A]) {
+      component = NodeType::Final1;
+    } else if (component == NodeType::Final1 && A.final_states[idx_A]) {
       // NodeType::Final1 -> FinalType::Final2 when a final state of A is seen
-      nodetype = NodeType::Final2;
-    } else if (nodetype == NodeType::Final2 && B.final_states[i_B]) {
+      component = NodeType::Final2;
+    } else if (component == NodeType::Final2 && B.final_states[idx_B]) {
       // NodeType::Final2 -> NodeType::Initial when a final state of B is seen
-      nodetype = NodeType::Initial;
+      component = NodeType::Initial;
     }
 
     // Explore out edges of u_A in A and match them with out edges of u_B in B.
     // BGL_FORALL_OUTEDGES(u_A, e_A, A.graph, graph_t) {
     for (auto [itr_A, end_A] = boost::out_edges(u_A, A.graph); itr_A != end_A; ++itr_A) {
-      auto e_A = *itr_A;
-      auto v_A = boost::target(e_A, A.graph);
-      auto i_vA = index_A[v_A];
-      auto symbol = label_A[e_A];
+      auto symbol = label_A[*itr_A];
+
+      auto target_A = boost::target(*itr_A, A.graph);
+      auto idx_target_A = index_A[target_A];
 
       // BGL_FORALL_OUTEDGES(u_B, e_B, B.graph, graph_t) {
       for (auto [itr_B, end_B] = boost::out_edges(u_B, B.graph); itr_B != end_B; ++itr_B) {
-        auto e_B = *itr_B;
-        if (symbol != label_B[e_B]) {
+        if (symbol != label_B[*itr_B]) {
           continue;
         }
 
-        auto v_B = boost::target(e_B, B.graph);
-        auto i_vB = index_B[v_B];
+        auto target_B = boost::target(*itr_B, B.graph);
+        auto idx_target_B = index_B[target_B];
 
         dbg(OutputType::Debug, printf("  "));
-        dbg(OutputType::Debug, print_binary(symbol, binary_digits(C->num_alphabet)));
-        dbg(OutputType::Debug, printf(fmt_edge, i_vA, i_vB));
-        dbg(OutputType::Debug, print_state(nodetype));
+        dbg(OutputType::Debug, print_binary(symbol, width));
+        dbg(OutputType::Debug, printf(fmt_edge, idx_target_A, idx_target_B));
+        dbg(OutputType::Debug, print_state(component));
         dbg(OutputType::Debug, printf(")"));
 
-        auto tuple = std::make_tuple(i_vA, i_vB, static_cast<int_type>(nodetype));
+        auto tuple = std::make_tuple(idx_target_A, idx_target_B, component);
         auto itr = map.find(tuple);
 
         // Add a new vertex to the product machine.
         if (itr == map.end()) {
-          auto v_C = boost::add_vertex(C->graph);
+          dbg(OutputType::Debug, printf("  *"));
 
-          if (nodetype == NodeType::Initial) {
-            state_C[v_C] = NodeType::Final;
+          auto v = boost::add_vertex(C->graph);
+
+          if (component == NodeType::Initial) {
+            state_C[v] = NodeType::Final;
           } else {
-            state_C[v_C] = NodeType::None;
+            state_C[v] = NodeType::None;
           }
 
-          dbg(OutputType::Debug, printf("  *"));
-          itr = map.insert({tuple, v_C}).first;
+          itr = map.insert({tuple, v}).first;
 
-          queue.push(std::move(tuple));
-          vertex_queue.push(v_C);
+          queue.push({idx_target_A, idx_target_B, component, v});
         }
 
         // Add a new edge to the target vertex.
@@ -1648,9 +1639,6 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
   C->Resize();
   dbg(OutputType::Debug, C->Print());
 
-  C->Clean();
-  dbg(OutputType::General, C->Print());
-
   return C;
 }
 
@@ -1662,25 +1650,25 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
 std::unique_ptr<BuchiAutomaton> DisjointUnion(const BuchiAutomaton& A, const BuchiAutomaton& B) {
   auto num_alphabet = std::max(A.num_alphabet, B.num_alphabet);
   auto num_vertices = A.num_vertices + B.num_vertices;
-  auto output = std::make_unique<BuchiAutomaton>(num_alphabet, num_vertices);
+  auto M = std::make_unique<BuchiAutomaton>(num_alphabet, num_vertices);
 
-  auto label = boost::get(boost::edge_name, output->graph);
-  auto state = boost::get(boost::vertex_name, output->graph);
+  auto label = boost::get(boost::edge_name, M->graph);
+  auto state = boost::get(boost::vertex_name, M->graph);
 
   auto index_A = boost::get(boost::vertex_index, A.graph);
   auto state_A = boost::get(boost::vertex_name, A.graph);
   auto label_A = boost::get(boost::edge_name, A.graph);
 
   for (auto i = 0UL; i < A.num_vertices; i++) {
-    auto u = boost::vertex(i, output->graph);
+    auto u = boost::vertex(i, M->graph);
     auto u_A = boost::vertex(i, A.graph);
 
     if (A.initial_states[i]) {
-      output->initial_states.set(i);
+      M->initial_states.set(i);
     }
 
     if (A.final_states[i]) {
-      output->final_states.set(i);
+      M->final_states.set(i);
     }
 
     for (auto [itr, end] = boost::out_edges(u_A, A.graph); itr != end; ++itr) {
@@ -1689,9 +1677,9 @@ std::unique_ptr<BuchiAutomaton> DisjointUnion(const BuchiAutomaton& A, const Buc
       auto index = index_A[v_A];
       auto symbol = label_A[*itr];
 
-      auto v = boost::vertex(index, output->graph);
+      auto v = boost::vertex(index, M->graph);
 
-      auto [e, b] = boost::add_edge(u, v, output->graph);
+      auto [e, b] = boost::add_edge(u, v, M->graph);
       label[e] = symbol;
     }
 
@@ -1703,15 +1691,15 @@ std::unique_ptr<BuchiAutomaton> DisjointUnion(const BuchiAutomaton& A, const Buc
   auto label_B = boost::get(boost::edge_name, B.graph);
 
   for (auto i = 0UL; i < B.num_vertices; i++) {
-    auto u = boost::vertex(i + A.num_vertices, output->graph);
+    auto u = boost::vertex(i + A.num_vertices, M->graph);
     auto u_B = boost::vertex(i, B.graph);
 
     if (B.initial_states[i]) {
-      output->initial_states.set(i + A.num_vertices);
+      M->initial_states.set(i + A.num_vertices);
     }
 
     if (B.final_states[i]) {
-      output->final_states.set(i + A.num_vertices);
+      M->final_states.set(i + A.num_vertices);
     }
 
     for (auto [itr, end] = boost::out_edges(u_B, B.graph); itr != end; ++itr) {
@@ -1720,26 +1708,25 @@ std::unique_ptr<BuchiAutomaton> DisjointUnion(const BuchiAutomaton& A, const Buc
       auto index = index_B[v_B] + A.num_vertices;
       auto symbol = label_B[*itr];
 
-      auto v = boost::vertex(index, output->graph);
+      auto v = boost::vertex(index, M->graph);
 
-      auto [e, b] = boost::add_edge(u, v, output->graph);
+      auto [e, b] = boost::add_edge(u, v, M->graph);
       label[e] = symbol;
     }
 
     state[u] = state[u_B];
   }
 
-  output->num_edges = A.num_edges + B.num_edges;
+  M->num_edges = A.num_edges + B.num_edges;
 
   // may not work
-  // output->Clean();
-  // output->Resize();
+  // M->Clean();
 
   if (verbose > static_cast<int>(OutputType::General)) {
-    output->Print();
+    M->Print();
   }
 
-  return output;
+  return M;
 }
 
 } // namespace omega

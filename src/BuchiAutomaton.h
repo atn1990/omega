@@ -33,17 +33,18 @@ public:
   void ProjectLabel();
 
   void Minimize();
-  void FindCycle(graph_t::vertex_descriptor& s,
-                  std::vector<int>& component,
-                  std::vector<uint8_t>& path,
-                  char* fmt_s,
-                  char* fmt_t);
-  void PrintPath(
-      std::vector<graph_t::vertex_descriptor>& p,
-      graph_t::vertex_descriptor& v,
-      std::vector<uint8_t>& path,
+  void FindCycle(
+      graph_t::vertex_descriptor& s,
+      std::vector<int>& component,
+      std::vector<int_type>& path,
       char* fmt_s,
-      char* fmt_t);
+      char* fmt_v);
+  void FindPath(
+      std::vector<graph_t::vertex_descriptor>& pred,
+      graph_t::vertex_descriptor& v,
+      std::vector<int_type>& path,
+      char* fmt_s,
+      char* fmt_v);
 
   std::unique_ptr<TransitionMap> Map() const;
 
