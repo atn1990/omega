@@ -5,7 +5,6 @@
 
 #include "BuchiAutomaton.h"
 #include "ECA.h"
-#include "Util.h"
 
 #include <cmath>
 #include <cstdio>
@@ -27,8 +26,8 @@
 namespace omega {
 
 // Print the rule table of an elementary cellular automaton.
-void RuleTable(uint32_t rule) {
-  printf("# RULE TABLE %u\n", rule);
+void RuleTable(int_type rule) {
+  printf("# RuleTable(%llu)\n", rule);
 
   // 8 transitions in total
   for (auto i = 0U; i < DE_BRUIJN_TRANSITIONS; i++) {
@@ -190,7 +189,7 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
 // Construct a Büchi automaton to check if two tracks are equal.
 // k is the number of tracks
 // pair indicates which tracks should be checked for equality
-std::unique_ptr<BuchiAutomaton> Equality(uint32_t k, int_pair pair) {
+std::unique_ptr<BuchiAutomaton> Equality(int_type k, int_pair pair) {
   auto M = std::make_unique<BuchiAutomaton>(std::exp2(k), 1);
 
   auto label = boost::get(boost::edge_name, M->graph);
@@ -218,6 +217,8 @@ std::unique_ptr<BuchiAutomaton> Equality(uint32_t k, int_pair pair) {
 
 // Modify a Büchi automaton to ensure that two specified tracks are equal.
 void Equality(BuchiAutomaton& M, int_pair pair) {
+  dbg(OutputType::General, printf("# x%llu == x%llu\n", pair.first, pair.second));
+
   auto label = boost::get(boost::edge_name, M.graph);
 
   boost::remove_edge_if([&pair, &label](const auto& edge) {
@@ -349,7 +350,7 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
 }
 
 // Construct a Büchi automaton to check if two tracks are not equal.
-std::unique_ptr<BuchiAutomaton> Inequality(uint32_t k, int_pair pair) {
+std::unique_ptr<BuchiAutomaton> Inequality(int_type k, int_pair pair) {
   auto M = std::make_unique<BuchiAutomaton>(std::exp2(k), 2);
 
   auto label = boost::get(boost::edge_name, M->graph);
@@ -386,7 +387,7 @@ std::unique_ptr<BuchiAutomaton> Inequality(uint32_t k, int_pair pair) {
 }
 
 // Construct a Büchi automaton to check if track is a forbidden configuration.
-std::unique_ptr<BuchiAutomaton> Pattern(uint32_t k, uint32_t n, const std::string& s) {
+std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::string& s) {
   auto start = 0U;
 
   graph_t::vertex_descriptor u, v, w;
@@ -425,7 +426,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(uint32_t k, uint32_t n, const std::strin
     }
 
     for (auto j = 0U; j < M->num_alphabet; j++) {
-      uint32_t symbol = s[i % s.length()] - '0';
+      int_type symbol = s[i % s.length()] - '0';
       if (MAP(j, n) == symbol) {
         if (i < s.length()-1 && s[i+1] == '*') {
           std::tie(e, added) = boost::add_edge(v, v, M->graph);
@@ -456,7 +457,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(uint32_t k, uint32_t n, const std::strin
 
   type[v] = NodeType::None;
 
-  uint32_t symbol;
+  int_type symbol;
   for (auto j = 0UL; j < M->num_alphabet; j++) {
     if (s[start + 1] != '*') {
       symbol = s[start] - '0';
@@ -474,7 +475,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(uint32_t k, uint32_t n, const std::strin
         label[e] = j;
       }
 
-      if (MAP(j, n) == (uint32_t) (s[2] - '0')) {
+      if (MAP(j, n) == (int_type) (s[2] - '0')) {
         auto [e, b] = boost::add_edge(v, w, M->graph);
         label[e] = j;
       } else if (MAP(j, n) != symbol) {
@@ -512,7 +513,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(uint32_t k, uint32_t n, const std::strin
 }
 
 // Construct a Büchi automaton that checks if a track is a finite configuration (but has at least one).
-std::unique_ptr<BuchiAutomaton> Finite(uint32_t k, uint32_t n, const std::string& s) {
+std::unique_ptr<BuchiAutomaton> Finite(int_type k, int_type n, const std::string& s) {
   auto num_states = 2;
   auto M = std::make_unique<BuchiAutomaton>(std::exp2(k), num_states);
   auto label = boost::get(boost::edge_name, M->graph);
@@ -526,7 +527,7 @@ std::unique_ptr<BuchiAutomaton> Finite(uint32_t k, uint32_t n, const std::string
 
   // finite occurrence of s[1]
   for (auto j = 0UL; j < M->num_alphabet; j++) {
-    if (MAP(j, n) != (uint32_t) (s[1] - '0')) {
+    if (MAP(j, n) != (int_type) (s[1] - '0')) {
       auto [e, b] = boost::add_edge(v, v, M->graph);
       label[e] = j;
     }
@@ -557,7 +558,7 @@ std::unique_ptr<BuchiAutomaton> Finite(uint32_t k, uint32_t n, const std::string
 
   // at least one occurrence of s[1]
   for (auto j = 0UL; j < N->num_alphabet; j++) {
-    if (MAP(j, n) != (uint32_t) (s[1] - '0')) {
+    if (MAP(j, n) != (int_type) (s[1] - '0')) {
       auto [e, b] = boost::add_edge(u, u, N->graph);
       label[e] = j;
     }
@@ -579,6 +580,15 @@ std::unique_ptr<BuchiAutomaton> Finite(uint32_t k, uint32_t n, const std::string
   return Intersection(*M, *N);
 }
 
+std::string to_string(ShiftType shift) {
+  switch (shift) {
+    case ShiftType::Left:
+      return "Left";
+    case ShiftType::Right:
+      return "Right";
+  }
+}
+
 // Construct a Büchi automaton that checks if track1 is a left or right shift of track2.
 // @param k: the number of tracks
 // @param pair: a pair of indices indicating which tracks to compare
@@ -586,24 +596,20 @@ std::unique_ptr<BuchiAutomaton> Finite(uint32_t k, uint32_t n, const std::string
 // @param full: if true, the automaton will include a crash state that absorbs all transitions
 //              if false, the automaton will not include the crash state
 // @return: a unique pointer to the constructed Büchi automaton
-// The automaton will have 4 states if full is true, and 3 states otherwise.
+// The automaton will have 4 states if `full` is true, and 3 states otherwise.
 // The states are:
 // 0: initial state
 // 1: final state for track1
 // 2: final state for track2
-// 3: crash state (only if full is true)
+// 3: crash state (only if `full` is true)
 // The transitions are defined such that:
-// - From the initial state, it transitions to either state 1 or 2 based on the first track's symbol.
-// - From state 1, it transitions to state 1 or 2 if the second track's symbol matches the previous symbol of the first track.
-// - If the second track's symbol does not match, it transitions to the crash state if full is true.
-// - Similarly, from state 2, it transitions to state 1 based on the second track's symbol, or to the crash state if full is true and the symbol does not match.
+// - From the initial state, transition to either state 1 or 2 based on the corresponding track's symbol.
+// - From state 1, transition to state 1 or 2 if the corresponding track's symbol matches the previous symbol read.
+// - If the corresponding track's symbol does not match, transition to the crash state if `full` is true.
+// - Similarly, from state 2, transition to state 1 or 2 based on the corresponding track's symbol, or to the crash state if `full` is true and the symbol does not match.
 // - The crash state absorbs all transitions, meaning any symbol will loop back to itself.
-std::unique_ptr<BuchiAutomaton> Shift(uint32_t k, int_pair pair, ShiftType shift, bool full = false) {
-  if (shift == ShiftType::Left) {
-    dbg(OutputType::Debug, printf("# LeftShift(%llu, %llu)\n", pair.first, pair.second));
-  } else {
-    dbg(OutputType::Debug, printf("# RightShift(%llu, %llu)\n", pair.first, pair.second));
-  }
+std::unique_ptr<BuchiAutomaton> Shift(int_type k, int_pair pair, ShiftType shift, bool full = false) {
+  dbg(OutputType::Debug, printf("# %sShift(%llu, {%llu, %llu})\n", to_string(shift).c_str(), k, pair.first, pair.second));
 
   auto num_states = 4;
   if (!full) {
@@ -628,9 +634,11 @@ std::unique_ptr<BuchiAutomaton> Shift(uint32_t k, int_pair pair, ShiftType shift
   }
 
   for (auto i = 0UL; i < M->num_alphabet; i++) {
-    auto n = GET_BIT(i, pair.first);
+    auto n = 0;
     if (shift == ShiftType::Left) {
       n = GET_BIT(i, pair.second);
+    } else {
+      n = GET_BIT(i, pair.first);
     }
 
     auto u = boost::vertex(n+1, M->graph);
@@ -651,9 +659,11 @@ std::unique_ptr<BuchiAutomaton> Shift(uint32_t k, int_pair pair, ShiftType shift
     type[u] = NodeType::Final;
 
     for (auto j = 0UL; j < M->num_alphabet; j++) {
-      auto n = GET_BIT(j, pair.first);
+      auto n = 0;
       if (shift == ShiftType::Left) {
         n = GET_BIT(j, pair.second);
+      } else {
+        n = GET_BIT(j, pair.first);
       }
       auto v = boost::vertex(n+1, M->graph);
 
@@ -687,20 +697,11 @@ std::unique_ptr<BuchiAutomaton> Shift(uint32_t k, int_pair pair, ShiftType shift
   return M;
 }
 
-std::string to_string(ShiftType shift) {
-  switch (shift) {
-    case ShiftType::Left:
-      return "Left";
-    case ShiftType::Right:
-      return "Right";
-  }
-}
-
-bool Shift(uint32_t rule, uint32_t k, ShiftType shift) {
+bool Shift(int_type rule, int_type k, ShiftType shift) {
   BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
   BOOST_ASSERT_MSG(k >= 1, "Parameter k must be at least 1");
 
-  dbg(OutputType::General, printf("# Shift(%d, %d, %s)\n", rule, k, to_string(shift).c_str()));
+  dbg(OutputType::General, printf("# Shift(%llu, %llu, %s)\n", rule, k, to_string(shift).c_str()));
 
   GlobalMapOpts opts;
   opts.full = false;
@@ -714,19 +715,12 @@ bool Shift(uint32_t rule, uint32_t k, ShiftType shift) {
     M = Intersection(*M, *N);
   }
 
-  M = Inequality(*M, {0, k});
-
-  std::unique_ptr<BuchiAutomaton> S;
-  if (shift == ShiftType::Left) {
-    S = Shift(k+1, {0, k}, shift, true);
-  } else {
-    S = Shift(k+1, {0, k}, shift);
+  for (auto i = 0U; i < k; i++) {
+    M = Inequality(*M, {i, i+1});
   }
 
+  auto S = Shift(k+1, {0, k}, shift);
   M = Intersection(*M, *S);
-
-
-  // printf("%d  ", !M->Empty());
 
   // for (const auto& s : p) {
   //   dbg(OutputType::General, printf("# x != %s\n", s.c_str()));
@@ -739,7 +733,7 @@ bool Shift(uint32_t rule, uint32_t k, ShiftType shift) {
   // }
 
   auto result = !M->Empty();
-  if (verbose > static_cast<int>(OutputType::General)) {
+  if (verbose > static_cast<int>(OutputType::Quiet)) {
     std::cout << "Shift(" << rule << ", " << k << ", " << to_string(shift) << "): " << std::boolalpha << result << std::endl;
   }
   return result;
@@ -747,13 +741,13 @@ bool Shift(uint32_t rule, uint32_t k, ShiftType shift) {
 
 // Construct a Büchi automaton to check if an ECA has a fixed-point.
 // A one-way infinite elementary cellular automaton has a fixed-point if there exists a configuration that evolves to itself after one application of the global map.
-bool FixedPoint(uint32_t rule) {
+bool FixedPoint(int_type rule) {
   BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
 
   GlobalMapOpts opts;
   opts.full = false;
 
-  dbg(OutputType::General, printf("# Fixed Point %u\n", rule));
+  dbg(OutputType::General, printf("# FixedPoint(%llu)\n", rule));
 
   // Construct x_0 -> x_1 and x_0 == x_1
   dbg(OutputType::General, printf("# x0 -> x1\n"));
@@ -804,7 +798,7 @@ bool FixedPoint(uint32_t rule) {
 // A one-way infinite elementary cellular automaton has a k-cycle if there exists a configuration that evolves to itself after k applications of the global map.
 //
 // Furthermore, the cycle must be proper, i.e., not a d-cycle where d is a divisor of k.
-bool Cycle(uint32_t rule, uint32_t k) {
+bool Cycle(int_type rule, int_type k) {
   BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
   BOOST_ASSERT_MSG(k >= 1, "Parameter k must be at least 1");
 
@@ -815,19 +809,16 @@ bool Cycle(uint32_t rule, uint32_t k) {
   // for i = {2, ..., k-1}, construct x_i -> x_{i+1} and x_1 -> x_{i+1}
   // finally, construct x_k -> x_1 and x_1 -> x_1 from x_1 -> x_k
 
-  dbg(OutputType::General, printf("# Cycle(%d, %d)\n", rule, k));
-  dbg(OutputType::General, printf("# x0 -> x1\n"));
+  dbg(OutputType::General, printf("# Cycle(%llu, %llu)\n", rule, k));
   auto M = GlobalMap(rule, k+1, {0, 1}, opts);
 
   for (auto i = 1U; i < k; i++) {
-    dbg(OutputType::General, printf("# x%u -> x%u\n", i, i+1));
     auto N = GlobalMap(rule, k+1, {i, i+1}, opts);
 
     dbg(OutputType::General, printf("# x0 -> x%u\n", i+1));
     M = Intersection(*M, *N);
   }
 
-  dbg(OutputType::General, printf("# x0 == x%u\n", k));
   Equality(*M, {0, k});
 
   // make sure cycle is a proper k-cycle
@@ -850,7 +841,7 @@ bool Cycle(uint32_t rule, uint32_t k) {
 // A one-way infinite elementary cellular automaton has a k-predecessor if and
 // only if there exist k distinct configurations x_1, ..., x_k evolving to a
 // single configuration y after one application of the global map.
-void Predecessor(uint32_t rule, uint32_t k, const std::vector<std::string>& p) {
+void Predecessor(int_type rule, int_type k, const std::vector<std::string>& p) {
   dbg(OutputType::General, printf("# x0 -> y\n"));
   auto M = GlobalMap(rule, k+1, {0, k});
 
@@ -884,7 +875,7 @@ void Predecessor(uint32_t rule, uint32_t k, const std::vector<std::string>& p) {
   }
 }
 
-bool Nilpotent(uint32_t rule, uint32_t k) {
+bool Nilpotent(int_type rule, int_type k) {
   BOOST_ASSERT_MSG(rule <= 255, "Rule must be in the range [0, 255]");
   BOOST_ASSERT_MSG(k >= 1, "Parameter k must be at least 1");
 
@@ -911,7 +902,7 @@ bool Nilpotent(uint32_t rule, uint32_t k) {
   //   M = Intersection(*M, *N);
   // }
 
-  dbg(OutputType::General, printf("# Nilpotent(%d, %d)\n", rule, k));
+  dbg(OutputType::General, printf("# Nilpotent(%llu, %llu)\n", rule, k));
   dbg(OutputType::General, printf("# x0 -> x1\n"));
   auto M = GlobalMap(rule, k+1, {0, 1}, opts);
 
@@ -924,7 +915,7 @@ bool Nilpotent(uint32_t rule, uint32_t k) {
   }
 
   // make sure that x_k is a fixed point
-  dbg(OutputType::General, printf("# [x0 -> x%u] && [x%u == x%u]\n", k, k-1, k));
+  dbg(OutputType::General, printf("# [x0 -> x%llu] && [x%llu == x%llu]\n", k, k-1, k));
   Equality(*M, {k-1, k});
 
   for (auto i = 0U; i < k; i++) {
@@ -977,7 +968,7 @@ bool Nilpotent(uint32_t rule, uint32_t k) {
 // \exists x_1, ..., x_k, y, \not\exists u
 // [(x_1 -/> y) || ... || (x_k -/> y) || (x_1 == x_2) || ... || (x_{k-1} == x_k)
 //   || ((u -/> y) && (u != x_1) && ... && (u != x_k))]
-bool InDegree(uint32_t rule, uint32_t k) {
+bool InDegree(int_type rule, int_type k) {
   BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
   BOOST_ASSERT_MSG(k > 0, "Parameter k must be at least 1");
 
@@ -991,7 +982,7 @@ bool InDegree(uint32_t rule, uint32_t k) {
   GlobalMapOpts opts;
   // opts.full = false;
   opts.negated = true;
-  dbg(OutputType::General, printf("# InDegree %d %d\n", rule, k));
+  dbg(OutputType::General, printf("# InDegree(%llu, %llu)\n", rule, k));
   dbg(OutputType::General, printf("# u -/> y\n"));
   auto M = GlobalMap(rule, k+2, {k+1, 0}, opts);
 
@@ -1049,7 +1040,7 @@ bool InDegree(uint32_t rule, uint32_t k) {
 // The global map is injective for a given rule r iff:
 //   \forall    x,y,z: [(x -> z) && (y -> z) => (x == y)]
 //   \notexists x,y,z: [(x -> z) && (y -> z) && (x != y)]
-bool Injective(uint32_t rule) {
+bool Injective(int_type rule) {
   BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
 
   GlobalMapOpts opts;
@@ -1078,7 +1069,7 @@ bool Injective(uint32_t rule) {
 
 // The global map for a given rule r is surjective iff:
 //   \forall y, \exists x : x -> y
-bool Surjective(uint32_t rule) {
+bool Surjective(int_type rule) {
   BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
 
   GlobalMapOpts opts;
@@ -1110,7 +1101,7 @@ bool Surjective(uint32_t rule) {
 /**
   * Generate the canonical one-step verifying automaton.
  **/
-void Canonical(uint32_t r) {
+void Canonical(int_type r) {
   BuchiAutomaton B(DE_BRUIJN_ALPHABET, DE_BRUIJN_SIZE);
   TransitionMap de_bruijn;
 
@@ -1137,16 +1128,16 @@ void Canonical(uint32_t r) {
 }
 
 // Apply the global map of a given rule for a given pattern n of width k.
-uint32_t Map(uint32_t rule, uint32_t n, uint32_t k) {
+int_type Map(int_type rule, int_type n, int_type k) {
   const static auto mask = 0x7U;
 
   if (k == 0) {
     return n;
   }
 
-  uint32_t width = 2*k-1;
-  uint32_t step = 0;
-  uint32_t count = 0;
+  auto width = 2*k-1;
+  auto step = 0;
+  auto count = 0UL;
 
   if (verbose > static_cast<int>(OutputType::Debug) && k > 1) {
     printf("p(");
@@ -1173,9 +1164,8 @@ uint32_t Map(uint32_t rule, uint32_t n, uint32_t k) {
 }
 
 // Apply the transducer for the given rule to the language accepted by M.
-std::unique_ptr<BuchiAutomaton> Cover(uint32_t rule, const BuchiAutomaton& M) {
-  std::queue<uint32_t> m_queue;
-  std::queue<uint32_t> t_queue;
+std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
+  std::queue<int_pair> queue;
 
   // Q_B is the cartesian product of Q_M and {00,01,10,11}
   auto size = 4*M.num_vertices;
@@ -1198,8 +1188,7 @@ std::unique_ptr<BuchiAutomaton> Cover(uint32_t rule, const BuchiAutomaton& M) {
 
       auto a = label[*e_itr];
 
-      m_queue.push(q_M);
-      t_queue.push(a);
+      queue.push({q_M, a});
 
       visited.set(COMPOSE_3(q_M, 0, a));
       B->initial_states.set(COMPOSE_3(q_M, 0, a));
@@ -1216,14 +1205,12 @@ std::unique_ptr<BuchiAutomaton> Cover(uint32_t rule, const BuchiAutomaton& M) {
     B->final_states.reset(COMPOSE_3(i, 1, 1));
   }
 
-  while (!m_queue.empty()) {
-    auto q_M = m_queue.front();
-    auto q_T = t_queue.front();
+  while (!queue.empty()) {
+    auto [q_M, q_T] = queue.front();
 
-    m_queue.pop();
-    t_queue.pop();
+    queue.pop();
 
-    dbg(OutputType::Debug, printf("(%d, %d)\n", q_M, q_T));
+    dbg(OutputType::Debug, printf("(%llu, %llu)\n", q_M, q_T));
 
     auto u = boost::vertex(q_M, M.graph);
     auto q = COMPOSE_3(q_M, 0, q_T);
@@ -1245,13 +1232,11 @@ std::unique_ptr<BuchiAutomaton> Cover(uint32_t rule, const BuchiAutomaton& M) {
       // The transition leaves q_T and goes to (q_T & 0x1) : a
       de_bruijn.insert({{q, b}, k});
 
-      dbg(OutputType::Debug, printf("  -->  (%u, %u)\n\n", q_M, COMPOSE_3(0, q_T & 0x1, a)));
+      dbg(OutputType::Debug, printf("  -->  (%llu, %llu)\n\n", q_M, COMPOSE_3(0, q_T & 0x1, a)));
 
-      if (!visited.test(k)) {
+      if (!visited[k]) {
         visited.set(k);
-
-        m_queue.push(q_M);
-        t_queue.push(COMPOSE_3(0, q_T & 0x1, a));
+        queue.push({q_M, COMPOSE_3(0, q_T & 0x1, a)});
       }
     }
   }
@@ -1274,7 +1259,7 @@ std::unique_ptr<BuchiAutomaton> Cover(uint32_t rule, const BuchiAutomaton& M) {
 }
 
 // Creates a one-state Büchi automaton that accepts all configurations with an alphabet of size k.
-std::unique_ptr<BuchiAutomaton> Top(uint32_t k) {
+std::unique_ptr<BuchiAutomaton> Top(int_type k) {
   TransitionMap de_bruijn;
 
   for (auto i = 0UL; i < k; i++) {
@@ -1295,7 +1280,7 @@ std::unique_ptr<BuchiAutomaton> Top(uint32_t k) {
 }
 
 // Generates the k-cover of a global map.
-void Minimal(uint32_t rule, uint32_t k) {
+void Minimal(int_type rule, int_type k) {
   auto B = Top(2);
 
   for (auto i = 0U; i < k; i++) {
@@ -1309,10 +1294,10 @@ void Minimal(uint32_t rule, uint32_t k) {
   * Construct a Büchi automaton to verify a property of the specified one-way
   * infinite elementary cellular automaton.
  **/
-void Run(uint32_t r, uint32_t k, const std::vector<std::string>& p) {
+void Run(int_type r, int_type k, const std::vector<std::string>& p) {
   if (verbose > static_cast<int>(OutputType::Debug)) {
-    printf("rule = %d\n", r);
-    printf("k    = %d\n\n", k);
+    printf("rule = %llu\n", r);
+    printf("k    = %llu\n\n", k);
     printf("p    = {");
     for (auto& s : p) {
       std::cout << s << "\n";
@@ -1336,7 +1321,7 @@ void Run(uint32_t r, uint32_t k, const std::vector<std::string>& p) {
   std::cout << std::endl;
 }
 
-void Tabulate(uint32_t k) {
+void Tabulate(int_type k) {
   std::vector<std::string> f0 = { "f0" };
   std::vector<std::string> f1 = { "f1" };
   std::vector<std::string> x;
@@ -1358,8 +1343,8 @@ void Tabulate(uint32_t k) {
   //   printf("\n");
   // }
 
-  for (auto i = k - 1U; i < 256; i++) {
-    printf("%3u  ", i);
+  for (auto i = 0; i < 256; i++) {
+    printf("%3d  ", i);
     printf("%d  ", Injective(i));
     printf("%d  ", Surjective(i));
     // printf("%d  ", FixedPoint(i, y));
@@ -1390,14 +1375,17 @@ void Tabulate(uint32_t k) {
     // Predecessor(i, 3, z);
     // Predecessor(i, 4, x);
     // Predecessor(i, 5, x);
+    printf("%d  ", Shift(i, 1, ShiftType::Left));
+    printf("%d  ", Shift(i, 2, ShiftType::Left));
+    printf("%d  ", Shift(i, 3, ShiftType::Left));
     printf("%d  ", Shift(i, 1, ShiftType::Right));
     printf("%d  ", Shift(i, 2, ShiftType::Right));
     printf("%d  ", Shift(i, 3, ShiftType::Right));
-    // printf("%d  ", RightShift(i, 4, {}));
-    // printf("%d  ", RightShift(i, 5, {}));
-    // printf("%d  ", RightShift(i, 3, y);
-    // printf("%d  ", RightShift(i, 4, y);
-    // printf("%d  ", RightShift(i, 5, y);
+    // printf("%d  ", Shift(i, 4, ShiftType::Right, {}));
+    // printf("%d  ", Shift(i, 5, ShiftType::Right, {}));
+    // printf("%d  ", Shift(i, 3, ShiftType::Right, y);
+    // printf("%d  ", Shift(i, 4, ShiftType::Right, y);
+    // printf("%d  ", Shift(i, 5, ShiftType::Right, y);
     // Minimal(i, 1);
     // Minimal(i, 2);
     // Minimal(i, 3);

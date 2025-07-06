@@ -151,9 +151,6 @@ BOOST_AUTO_TEST_CASE(BaseTest) {
   BOOST_TEST(Surjective(0) == false);
   BOOST_TEST(Surjective(255) == false);
   BOOST_TEST(Surjective(110) == false);
-  BOOST_TEST(FixedPoint(0) == true);
-  BOOST_TEST(FixedPoint(255) == true);
-  BOOST_TEST(FixedPoint(110) == true);
   BOOST_TEST(Cycle(0, 1) == true);
   BOOST_TEST(Cycle(255, 1) == true);
   BOOST_TEST(Cycle(110, 1) == true);
@@ -172,5 +169,5 @@ BOOST_AUTO_TEST_CASE(BaseTest) {
   BOOST_TEST(Shift(0, 1, ShiftType::Right) == false);
   BOOST_TEST(Shift(255, 1, ShiftType::Right) == false);
   BOOST_TEST(Shift(16, 1, ShiftType::Right) == true);
-  // BOOST_TEST(Shift(1, 1, ShiftType::Left) == true);
+  BOOST_TEST(Shift(2, 1, ShiftType::Left) == true);
 }

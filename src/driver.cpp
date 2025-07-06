@@ -32,10 +32,7 @@ extern int verbose; // sets verbosity level for debugging output
 extern size_t num_threads; // number of threads to execute concurrently
 extern std::string dotfile;
 
-using omega::BuchiAutomaton;
-using omega::RabinAutomaton;
-using omega::RabinTransitionMap;
-using omega::TransitionMap;
+using namespace omega;
 
 // Read a "u:v" pair from infile (may be stdin) and parse the input.
 bool ReadUV(std::istream& file,
@@ -158,10 +155,10 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
     exit(EXIT_FAILURE);
   }
 
-  uint32_t alphabet = 0;
-  uint32_t states = 0;
-  uint32_t transitions = 0;
-  uint32_t count = 0;
+  auto alphabet = 0U;
+  auto states = 0U;
+  auto transitions = 0U;
+  auto count = 0U;
 
   boost::dynamic_bitset<> I;
   boost::dynamic_bitset<> F;
@@ -185,9 +182,9 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
       file >> transitions;
       std::getline(file, str);
     } else if (str == "# BEGIN TRANSITIONS") {
-      uint32_t u, v, s;
+      auto u = 0U, v = 0U, s = 0U;
 
-      dbg(omega::OutputType::General, printf("# TRANSITIONS\n"));
+      dbg(OutputType::General, printf("# TRANSITIONS\n"));
 
       // std::getline(file, str);
       while (std::getline(file, str) && str != "# END TRANSITIONS") {
@@ -202,26 +199,26 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
         }
 
         map.insert({{u, s}, v});
-        if (verbose > static_cast<int>(omega::OutputType::General)) {
+        if (verbose > static_cast<int>(OutputType::General)) {
           std::cout << "(" << u << ", " << s << ") -> " << v << "\n";
         }
 
         count++;
       }
 
-      dbg(omega::OutputType::General, printf("\n"));
+      dbg(OutputType::General, printf("\n"));
     } else if (str == "# INITIAL") {
       file >> I;
       std::getline(file, str);
 
-      if (verbose > static_cast<int>(omega::OutputType::General)) {
+      if (verbose > static_cast<int>(OutputType::General)) {
         std::cout << "# INITIAL\n" << I << "\n\n";
       }
     } else if (str == "# FINAL") {
       file >> F;
       std::getline(file, str);
 
-      if (verbose > static_cast<int>(omega::OutputType::General)) {
+      if (verbose > static_cast<int>(OutputType::General)) {
         std::cout << "# FINAL\n" << F << "\n\n";
       }
     }
@@ -233,7 +230,7 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
 
   // Remove useless final states. If they're all final, don't bother.
   // if (F.count() != F.size()) {
-  //   dbg(omega::OutputType::General, printf("# Removing useless final states\n\n"));
+  //   dbg(OutputType::General, printf("# Removing useless final states\n\n"));
   //   BOOST_ASSERT(F.count() != 0);
   //   // TODO: remove useless final states
   // }
@@ -247,7 +244,7 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
   BOOST_ASSERT(!I.empty());
   BOOST_ASSERT(!F.empty());
 
-  // if (verbose > static_cast<int>(omega::OutputType::General)) {
+  // if (verbose > static_cast<int>(OutputType::General)) {
   //   printf("# STATES      %u\n", states);
   //   printf("# ALPHABET    %u\n", alphabet);
   //   printf("# TRANSITIONS %u\n\n", transitions);
@@ -258,7 +255,7 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
   B->initial_states = I;
   B->final_states = F;
 
-  if (verbose > static_cast<int>(omega::OutputType::General)) {
+  if (verbose > static_cast<int>(OutputType::General)) {
     B->Print();
   }
 
@@ -273,7 +270,7 @@ void Intersection(const std::vector<std::string> &input) {
   auto B = ReadBuchi(input.back(), map_B);
   auto output = Intersection(*A, *B);
 
-  if (verbose > static_cast<int>(omega::OutputType::Quiet)) {
+  if (verbose > static_cast<int>(OutputType::Quiet)) {
     output->Print();
   }
 }
@@ -286,14 +283,14 @@ void DisjointUnion(const std::vector<std::string> &input) {
   auto B = ReadBuchi(input.back(), map_B);
   auto output = DisjointUnion(*A, *B);
 
-  if (verbose > static_cast<int>(omega::OutputType::Quiet)) {
+  if (verbose > static_cast<int>(OutputType::Quiet)) {
     output->Print();
   }
 }
 
 void print_help(const char *name) {
-  printf("Omega Automata Version 7.0 2025/01/25\n");
-  printf("Copyright (c) 2011-2025, Adrian Trejo Nuñez (atrejo90@gmail.com)\n\n");
+  printf("Omega Version 1.8.0 2025/07/06\n");
+  printf("Copyright (c) 2011-2025, Adrian Trejo Nuñez (atrejo@andrew.cmu.edu)\n\n");
   printf("usage: %s [options] file\n", name);
 }
 
@@ -322,7 +319,7 @@ int main(int argc, char *argv[]) {
     ("union", "Union Construction of Büchi Automata")
 
     ("canonical",
-     opt::value<int>()->notifier(&omega::Canonical),
+     opt::value<int>()->notifier(&Canonical),
      "Output Transition Table for Canonical DeBruijn Automaton")
     ("run,r",
      opt::value<int>(),
@@ -357,7 +354,7 @@ int main(int argc, char *argv[]) {
      opt::value<size_t>(&num_threads)->default_value(4),
      "Number of Threads to Execute Concurrently")
     ("verbose,v",
-     opt::value<int>(&verbose)->default_value(static_cast<int>(omega::OutputType::General)),
+     opt::value<int>(&verbose)->default_value(static_cast<int>(OutputType::General)),
      "Verbosity Level\n  0: Quiet\n  1: General\n  2: Debugging");
 
   // Allow user to type:
@@ -393,7 +390,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (var_map.count("outfile")) {
-    verbose = static_cast<int>(omega::OutputType::Outfile);
+    verbose = static_cast<int>(OutputType::Outfile);
   }
 
   std::vector<std::string> patterns;
@@ -414,17 +411,13 @@ int main(int argc, char *argv[]) {
     B = ReadBuchi(filename, map);
   } else {
     if (var_map.count("cycle")) {
-      if (var_map["k"].as<int>() == 1) {
-        omega::FixedPoint(var_map["cycle"].as<int>());
-      } else {
-        omega::Cycle(var_map["cycle"].as<int>(), var_map["k"].as<int>());
-      }
+      Cycle(var_map["cycle"].as<int>(), var_map["k"].as<int>());
     } else if (var_map.count("run")) {
-      omega::Run(var_map["run"].as<int>(), var_map["k"].as<int>(), patterns);
+      Run(var_map["run"].as<int>(), var_map["k"].as<int>(), patterns);
     } else if (var_map.count("dfa")) {
-      omega::Minimal(var_map["dfa"].as<int>(), var_map["k"].as<int>());
+      Minimal(var_map["dfa"].as<int>(), var_map["k"].as<int>());
     } else if (var_map.count("tabulate")) {
-      omega::Tabulate(var_map["k"].as<int>());
+      Tabulate(var_map["k"].as<int>());
     } else if (var_map.count("product")) {
       Intersection(var_map["file"].as<std::vector<std::string>>());
     } else if (var_map.count("union")) {
@@ -443,11 +436,11 @@ int main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
   }
 
-  omega::DeterminizeOpts opts;
+  DeterminizeOpts opts;
   opts.SwapUpdateCreate = var_map.count("swap");
   auto R = B->Determinize(map, opts);
 
-  if (verbose > static_cast<int>(omega::OutputType::Quiet)) {
+  if (verbose > static_cast<int>(OutputType::Quiet)) {
     R->Print();
   }
 

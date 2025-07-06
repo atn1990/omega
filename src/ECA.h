@@ -7,7 +7,8 @@
 #ifndef OMEGA_ECA_H
 #define OMEGA_ECA_H
 
-#include <cstdint>
+#include "Util.h"
+
 #include <string>
 #include <vector>
 
@@ -18,18 +19,18 @@ enum class ShiftType {
   Right,
 };
 
-void Tabulate(uint32_t);
-void Canonical(uint32_t);
-void Minimal(uint32_t, uint32_t);
-void Run(uint32_t, uint32_t, const std::vector<std::string>&);
+void Tabulate(int_type);
+void Canonical(int_type);
+void Minimal(int_type, int_type);
+void Run(int_type, int_type, const std::vector<std::string>&);
 
-bool Injective(uint32_t);
-bool Surjective(uint32_t);
-bool FixedPoint(uint32_t);
-bool Cycle(uint32_t, uint32_t);
-bool Nilpotent(uint32_t, uint32_t);
-bool Shift(uint32_t, uint32_t, ShiftType);
-bool InDegree(uint32_t, uint32_t);
+bool Injective(int_type);
+bool Surjective(int_type);
+bool FixedPoint(int_type);
+bool Cycle(int_type, int_type);
+bool Nilpotent(int_type, int_type);
+bool Shift(int_type, int_type, ShiftType);
+bool InDegree(int_type, int_type);
 
 } // namespace omega
 
