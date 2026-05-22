@@ -5,9 +5,7 @@
 #include "Util.h"
 
 #include <cstdio>
-#include <iostream>
-
-#include <boost/dynamic_bitset.hpp>
+#include <print>
 
 namespace omega {
 
@@ -25,30 +23,16 @@ void Automaton::Resize() {
 
 // Pretty printing of automata.
 void Automaton::Print(void) const {
-  // num_vertices = boost::num_vertices(graph);
-  // num_edges = boost::num_edges(graph);
-  auto n = decimal_digits(num_vertices);
-  auto m = decimal_digits(num_edges);
-  auto s = binary_digits(num_alphabet);
+  auto vertex_width = decimal_digits(num_vertices-1);
+  auto binary_width = binary_digits(num_alphabet-1);
+  auto decimal_width = decimal_digits(num_alphabet-1);
 
-  printf("# GRAPH\n");
-  printf("  N = %llu\n", num_vertices);
-  printf("  M = %llu\n", num_edges);
-  printf("  S = %llu\n\n", num_alphabet);
+  std::print("# GRAPH\n");
+  std::print("  N = {}\n", num_vertices);
+  std::print("  M = {}\n", num_edges);
+  std::print("  S = {}\n\n", num_alphabet);
 
-  printf("# ADJACENCY LIST\n");
-
-  char fmt[MAXLINE];
-  snprintf(fmt, MAXLINE, "%%%dzd  %%%du  %%%du\n", n, decimal_digits(num_alphabet), n);
-
-  char fmt_vertex[MAXLINE];
-  snprintf(fmt_vertex, MAXLINE, "%%%dzd (", n);
-
-  char fmt_v[MAXLINE];
-  snprintf(fmt_v, MAXLINE, "  f(%%%dzd, ", n);
-
-  char fmt_edge[MAXLINE];
-  snprintf(fmt_edge, MAXLINE, ") = %%%du\n", n);
+  std::print("# ADJACENCY LIST\n");
 
   // Boost Property Maps
   auto index = boost::get(boost::vertex_index, graph);
@@ -58,30 +42,23 @@ void Automaton::Print(void) const {
   for (auto i = 0U; i < num_vertices; i++) {
     auto u = boost::vertex(i, graph);
 
-    dbg(OutputType::Outfile, printf(fmt_vertex, i));
-    print_state(state[u]);
-    dbg(OutputType::Outfile, printf(")\n"));
+    dbg(OutputType::Outfile, std::print("{:{}} ({})\n", i, vertex_width, print_state(state[u])));
 
     for (auto [e_itr, e_end] = boost::out_edges(u, graph); e_itr != e_end; ++e_itr) {
       auto v = boost::target(*e_itr, graph);
       auto symbol = label[*e_itr];
 
-      if (verbose == static_cast<int>(OutputType::Outfile)) {
-        printf(fmt, i, symbol, index[v]);
+      if (verbose == std::to_underlying(OutputType::Outfile)) {
+        std::print("{:{}}  {:{}}  {:{}}", i, vertex_width, symbol, decimal_width, index[v], vertex_width);
       } else {
-        printf(fmt_v, index[u]);
-        print_binary(symbol, s);
-        printf(fmt_edge, index[v]);
-        // printf("  ");
-        // print_binary(symbol, s);
-        // printf(fmt_edge, index[v]);
+        std::print("  f({:{}}, {:0{}b}) = {:{}}\n", index[u], vertex_width, symbol, binary_width, index[v], vertex_width);
       }
     }
 
-    printf("\n");
+    std::print("\n");
   }
 
-  std::cout << std::endl;
+  std::print("\n");
 }
 
 } // namespace omega

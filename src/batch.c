@@ -26,8 +26,7 @@ int run(char* n, char* k) {
 
   if (pid == 0) {
     ualarm(t_bound, 0);
-    if (execl(
-          "./driver", "./driver", "--dfa", n, "--k", k, "-v", "0", NULL) < 0) {
+    if (execl("./driver", "./driver", "--dfa", n, "--k", k, "-v", "0", NULL) < 0) {
       unix_error("exec() error");
     }
   }

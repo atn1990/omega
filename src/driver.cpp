@@ -6,15 +6,14 @@
 #include "ECA.h"
 #include "Util.h"
 
-#include <cassert>
 #include <cctype>
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
-#include <iostream>
 #include <list>
 #include <map>
+#include <print>
 #include <set>
 #include <string>
 // #include <string_view>
@@ -29,17 +28,17 @@
 // #include <gperftools/profiler.h>
 
 extern int verbose; // sets verbosity level for debugging output
-extern size_t num_threads; // number of threads to execute concurrently
+// extern size_t num_threads; // number of threads to execute concurrently
 extern std::string dotfile;
 
 using namespace omega;
 
 // Read a "u:v" pair from infile (may be stdin) and parse the input.
-bool ReadUV(std::istream& file,
+bool ReadUV(std::istream& stream,
             const uint32_t alphabet,
             std::string& U,
             std::string& V) {
-  if (!std::getline(file, U, ':') || !std::getline(file, V)) {
+  if (!std::getline(stream, U, ':') || !std::getline(stream, V)) {
     return false;
   }
 
@@ -74,14 +73,14 @@ void classify(const std::string& filename) {
 
   std::ifstream file(filename);
   if (file.fail()) {
-    std::cerr << "Could not open file: " << filename << std::endl;
+    std::print(std::cerr, "Could not open file: {}\n", filename);
     exit(EXIT_FAILURE);
   }
 
   std::string str;
   while (std::getline(file, str)) {
     if (str.front() == '#') {
-      std::cout << str << std::endl;
+      std::print("{}\n", str);
       continue;
     }
 
@@ -90,7 +89,7 @@ void classify(const std::string& filename) {
     char *endptr = nullptr;
 
     uint8_t rule = std::strtol(ptr, &endptr, 10);
-    printf("%3u: ", rule);
+    std::print("{:3}: ", rule);
     // auto start = str.begin();
     // std::advance(start, endptr - ptr);
     // str.erase(str.begin(), start);
@@ -102,7 +101,7 @@ void classify(const std::string& filename) {
 
     // remove whitespace from str
     str.erase(std::remove_if(str.begin(), str.end(), pred), str.end());
-    std::cout << str << std::endl;
+    std::print("{}\n", str);
 
     auto itr = map.find(str);
 
@@ -115,7 +114,7 @@ void classify(const std::string& filename) {
     itr->second.push_back(rule);
   }
 
-  printf("\n\n");
+  std::print("\n\n");
   for (auto trace : map) {
     auto itr = class_map.find(trace.second.size());
 
@@ -131,17 +130,17 @@ void classify(const std::string& filename) {
   // the map stores keys in ascending order, so traverse the class_map in
   // reverse to output the largest classes first
   for (auto r_itr = class_map.rbegin(); r_itr != class_map.rend(); ++r_itr) {
-    printf("Class: %u\nSize: %lu\n", r_itr->first, r_itr->second.size());
+    std::print("Class: {}\nSize: {}\n", r_itr->first, r_itr->second.size());
 
     for (auto c : r_itr->second) {
       for (auto n : map.find(c)->second) {
-        printf("%3d  ", n);
+        std::print("{:3}  ", n);
       }
 
-      printf("\n\n");
+      std::print("\n\n");
     }
 
-    printf("\n");
+    std::print("\n");
   }
 
   file.close();
@@ -151,7 +150,7 @@ void classify(const std::string& filename) {
 std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, TransitionMap& map) {
   std::ifstream file(filename);
   if (file.fail()) {
-    std::cerr << "Could not open file: " << filename << std::endl;
+    std::print(std::cerr, "Could not open file: {}\n", filename);
     exit(EXIT_FAILURE);
   }
 
@@ -184,9 +183,8 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
     } else if (str == "# BEGIN TRANSITIONS") {
       auto u = 0U, v = 0U, s = 0U;
 
-      dbg(OutputType::General, printf("# TRANSITIONS\n"));
+      dbg(OutputType::General, std::print("# TRANSITIONS\n"));
 
-      // std::getline(file, str);
       while (std::getline(file, str) && str != "# END TRANSITIONS") {
         // ignore empty lines
         if (str.empty()) {
@@ -194,43 +192,35 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
         }
 
         if (sscanf(str.c_str(), "%u %u %u", &u, &s, &v) != 3) {
-          std::cerr << "Malformed transition: " << str << std::endl;
+          std::print(std::cerr, "Malformed transition: {}\n", str);
           exit(EXIT_FAILURE);
         }
 
         map.insert({{u, s}, v});
-        if (verbose > static_cast<int>(OutputType::General)) {
-          std::cout << "(" << u << ", " << s << ") -> " << v << "\n";
-        }
+        dbg(OutputType::General, std::print("({}, {}) -> {}\n", u, s, v));
 
         count++;
       }
 
-      dbg(OutputType::General, printf("\n"));
+      dbg(OutputType::General, std::print("\n"));
     } else if (str == "# INITIAL") {
       file >> I;
       std::getline(file, str);
 
-      if (verbose > static_cast<int>(OutputType::General)) {
-        std::cout << "# INITIAL\n" << I << "\n\n";
-      }
+      dbg(OutputType::General, std::print("# INITIAL\n{}\n\n", I));
     } else if (str == "# FINAL") {
       file >> F;
       std::getline(file, str);
 
-      if (verbose > static_cast<int>(OutputType::General)) {
-        std::cout << "# FINAL\n" << F << "\n\n";
-      }
+      dbg(OutputType::General, std::print("# FINAL\n{}\n\n", F));
     }
   }
-
-  std::flush(std::cout);
 
   file.close();
 
   // Remove useless final states. If they're all final, don't bother.
   // if (F.count() != F.size()) {
-  //   dbg(OutputType::General, printf("# Removing useless final states\n\n"));
+  //   dbg(OutputType::General, std::print("# Removing useless final states\n\n"));
   //   BOOST_ASSERT(F.count() != 0);
   //   // TODO: remove useless final states
   // }
@@ -244,20 +234,18 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
   BOOST_ASSERT(!I.empty());
   BOOST_ASSERT(!F.empty());
 
-  // if (verbose > static_cast<int>(OutputType::General)) {
-  //   printf("# STATES      %u\n", states);
-  //   printf("# ALPHABET    %u\n", alphabet);
-  //   printf("# TRANSITIONS %u\n\n", transitions);
-  // }
+  // dbg(OutputType::General), {
+  //   std::print("# STATES      {}\n", states);
+  //   std::print("# ALPHABET    {}\n", alphabet);
+  //   std::print("# TRANSITIONS {}\n\n", transitions);
+  // });
 
   auto B = std::make_unique<BuchiAutomaton>(alphabet, states);
   B->Init(map);
   B->initial_states = I;
   B->final_states = F;
 
-  if (verbose > static_cast<int>(OutputType::General)) {
-    B->Print();
-  }
+  dbg(OutputType::General, B->Print());
 
   return B;
 }
@@ -270,9 +258,7 @@ void Intersection(const std::vector<std::string> &input) {
   auto B = ReadBuchi(input.back(), map_B);
   auto output = Intersection(*A, *B);
 
-  if (verbose > static_cast<int>(OutputType::Quiet)) {
-    output->Print();
-  }
+  dbg(OutputType::Quiet, output->Print());
 }
 
 // Read two Büchi automata from a file and construct the union automaton.
@@ -283,15 +269,13 @@ void DisjointUnion(const std::vector<std::string> &input) {
   auto B = ReadBuchi(input.back(), map_B);
   auto output = DisjointUnion(*A, *B);
 
-  if (verbose > static_cast<int>(OutputType::Quiet)) {
-    output->Print();
-  }
+  dbg(OutputType::Quiet, output->Print());
 }
 
 void print_help(const char *name) {
-  printf("Omega Version 1.8.0 2025/07/06\n");
-  printf("Copyright (c) 2011-2025, Adrian Trejo Nuñez (atrejo@andrew.cmu.edu)\n\n");
-  printf("usage: %s [options] file\n", name);
+  std::print("Omega Version 1.8.0 2025/07/06\n");
+  std::print("Copyright (c) 2011-2025, Adrian Trejo Nuñez (atrejo@andrew.cmu.edu)\n\n");
+  std::print("usage: {} [options] file\n", name);
 }
 
 int main(int argc, char *argv[]) {
@@ -350,12 +334,12 @@ int main(int argc, char *argv[]) {
     ("dot",
      opt::value<std::string>(),
      "Output To .dot File")
-    ("threads",
-     opt::value<size_t>(&num_threads)->default_value(4),
-     "Number of Threads to Execute Concurrently")
+    // ("threads",
+    //  opt::value<size_t>(&num_threads)->default_value(4),
+    //  "Number of Threads to Execute Concurrently")
     ("verbose,v",
-     opt::value<int>(&verbose)->default_value(static_cast<int>(OutputType::General)),
-     "Verbosity Level\n  0: Quiet\n  1: General\n  2: Debugging");
+     opt::value<int>(&verbose)->default_value(std::to_underlying(OutputType::General)),
+     "Verbosity Level\n  0: Quiet\n  1: General\n  2: Debug");
 
   // Allow user to type:
   //   > ./driver file.aut
@@ -381,16 +365,16 @@ int main(int argc, char *argv[]) {
   //   opt::store(
   //       opt::parse_config_file<char>("omega.cfg", desc), var_map);
   // } catch (const opt::reading_file& e) {
-  //   std::cout << "Error: " << e.what() << std::endl;
+  //   std::print("Error: {}\n", e.what());
   // }
 
   if (var_map.count("dot")) {
     dotfile = var_map["dot"].as<std::string>();
-    std::cout << dotfile << std::endl;
+    std::print("{}\n", dotfile);
   }
 
   if (var_map.count("outfile")) {
-    verbose = static_cast<int>(OutputType::Outfile);
+    verbose = std::to_underlying(OutputType::Outfile);
   }
 
   std::vector<std::string> patterns;
@@ -427,7 +411,7 @@ int main(int argc, char *argv[]) {
       classify(filename);
     } else {
       print_help(argv[0]);
-      printf("must specify input file\n");
+      std::print("must specify input file\n");
       std::cout << desc << std::endl;
 
       return EXIT_FAILURE;
@@ -440,9 +424,7 @@ int main(int argc, char *argv[]) {
   opts.SwapUpdateCreate = var_map.count("swap");
   auto R = B->Determinize(map, opts);
 
-  if (verbose > static_cast<int>(OutputType::Quiet)) {
-    R->Print();
-  }
+  dbg(OutputType::Quiet, R->Print());
 
   if (var_map.count("clean")) {
     R->Clean();
@@ -455,8 +437,8 @@ int main(int argc, char *argv[]) {
   BOOST_ASSERT(!R->pairs.empty());
 
   if (var_map.count("interactive")) {
-    printf("Interactive mode.\n");
-    printf("Enter \"u:v\" pair (EOF to stop): ");
+    std::print("Interactive mode.\n");
+    std::print("Enter \"u:v\" pair (EOF to stop): ");
 
     std::string U, V;
     while (ReadUV(std::cin, R->num_alphabet, U, V)) {
@@ -465,10 +447,10 @@ int main(int argc, char *argv[]) {
         R->TestUV(U, V);
       }
 
-      printf("\nEnter \"u,v\" pair (EOF to stop): ");
+      std::print("\nEnter \"u,v\" pair (EOF to stop): ");
     }
 
-    std::cout << std::endl;
+    std::print("\n");
   }
 
   if (var_map.count("test")) {
@@ -476,7 +458,7 @@ int main(int argc, char *argv[]) {
 
     std::ifstream file(filename);
     if (file.fail()) {
-      std::cerr << "Could not open file: " << filename << std::endl;
+      std::print(std::cerr, "Could not open file: {}\n", filename);
       exit(EXIT_FAILURE);
     }
 
@@ -487,7 +469,7 @@ int main(int argc, char *argv[]) {
         R->TestUV(U, V);
       }
 
-      std::cout << std::endl;
+      std::print("\n");
     }
 
     file.close();

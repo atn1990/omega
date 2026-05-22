@@ -28,7 +28,7 @@ struct GlobalFixture {
       char* end;
       verbose = std::strtol(env, &end, 10);
     } else {
-      verbose = static_cast<int>(omega::OutputType::General);
+      verbose = std::to_underlying(omega::OutputType::General);
     }
     // num_threads = 1;
   }

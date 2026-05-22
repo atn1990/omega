@@ -5,7 +5,7 @@ CFLAGS = -Wall -Wextra
 
 CPPFLAGS = -DDEBUG_BUILD
 CXX = clang++
-CXXFLAGS = --std=c++20 -Wall -Wextra \
+CXXFLAGS = --std=c++23 -Wall -Wextra \
 					 -I. -isystem /opt/homebrew/include \
 					 -Wno-unused-variable -Wno-unused-parameter -g
 

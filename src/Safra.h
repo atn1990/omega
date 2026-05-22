@@ -1,14 +1,11 @@
+#pragma once
+
 // <Safra.h>
 //   Class definitions for SafraNode and SafraTree.
 
-#ifndef OMEGA_SAFRA_H
-#define OMEGA_SAFRA_H
-
 #include <cstdint>
-#include <iostream>
 #include <list>
 #include <memory>
-#include <ostream>
 #include <unordered_map>
 
 #include <boost/dynamic_bitset.hpp>
@@ -83,5 +80,3 @@ public:
 };
 
 } // namespace omega
-
-#endif // OMEGA_SAFRA_H

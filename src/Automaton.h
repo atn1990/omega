@@ -1,10 +1,9 @@
+#pragma once
+
 // Automaton.h
 //   Class definition of Automaton.
 //   Constants and function-like macros.
 //   Data structure definitions.
-
-#ifndef OMEGA_AUTOMATON_H
-#define OMEGA_AUTOMATON_H
 
 #include "Util.h"
 
@@ -31,7 +30,6 @@
 // #include <boost/config.hpp>
 // #include <boost/bind.hpp>
 // #include <boost/range/adaptor/reversed.hpp>
-
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/graph/strong_components.hpp>
@@ -39,7 +37,6 @@
 
 namespace omega {
 
-using int_type = uint64_t;
 using int_pair = std::pair<int_type, int_type>;
 using int_triple = std::tuple<int_type, int_type, int_type>;
 
@@ -85,5 +82,3 @@ public:
 };
 
 } // namespace omega
-
-#endif // OMEGA_AUTOMATON_H

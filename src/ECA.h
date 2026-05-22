@@ -1,11 +1,7 @@
-/**
-  * <ECA.h>
-  *   Functions for expressing properties about the elementary cellular
-  *   automata.
- **/
+#pragma once
 
-#ifndef OMEGA_ECA_H
-#define OMEGA_ECA_H
+// <ECA.h>
+//   Functions for expressing properties about the elementary cellular automata
 
 #include "Util.h"
 
@@ -33,5 +29,3 @@ bool Shift(int_type, int_type, ShiftType);
 bool InDegree(int_type, int_type);
 
 } // namespace omega
-
-#endif // OMEGA_ECA_H

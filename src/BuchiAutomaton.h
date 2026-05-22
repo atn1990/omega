@@ -1,14 +1,13 @@
-#ifndef OMEGA_BUCHI_AUTOMATON_H
-#define OMEGA_BUCHI_AUTOMATON_H
+#pragma once
+
+#include "Automaton.h"
+#include "RabinAutomaton.h"
 
 #include <cstdint>
 #include <memory>
 #include <vector>
 
 #include <boost/dynamic_bitset.hpp>
-
-#include "Automaton.h"
-#include "RabinAutomaton.h"
 
 namespace omega {
 
@@ -36,15 +35,11 @@ public:
   void FindCycle(
       graph_t::vertex_descriptor& s,
       std::vector<int>& component,
-      std::vector<int_type>& path,
-      char* fmt_s,
-      char* fmt_v);
+      std::vector<int_type>& path);
   void FindPath(
       std::vector<graph_t::vertex_descriptor>& pred,
       graph_t::vertex_descriptor& v,
-      std::vector<int_type>& path,
-      char* fmt_s,
-      char* fmt_v);
+      std::vector<int_type>& path);
 
   std::unique_ptr<TransitionMap> Map() const;
 
@@ -62,5 +57,3 @@ public:
 };
 
 } // namespace omega
-
-#endif // OMEGA_BUCHI_AUTOMATON_H

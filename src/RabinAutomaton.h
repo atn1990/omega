@@ -1,5 +1,4 @@
-#ifndef OMEGA_RABIN_AUTOMATON_H
-#define OMEGA_RABIN_AUTOMATON_H
+#pragma once
 
 #include <cstdint>
 #include <list>
@@ -67,5 +66,3 @@ public:
 };
 
 } // namespace omega
-
-#endif // OMEGA_RABIN_AUTOMATON_H

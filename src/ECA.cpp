@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cassert>
 #include <iostream>
+#include <print>
 #include <queue>
 
 #include <boost/dynamic_bitset.hpp>
@@ -27,14 +28,14 @@ namespace omega {
 
 // Print the rule table of an elementary cellular automaton.
 void RuleTable(int_type rule) {
-  printf("# RuleTable(%llu)\n", rule);
+  std::print("# RuleTable({})\n", rule);
 
   // 8 transitions in total
   for (auto i = 0U; i < DE_BRUIJN_TRANSITIONS; i++) {
-    printf("%llu%llu%llu = %llu\n", MAP(i, 2), MAP(i, 1), MAP(i, 0), MAP(rule, i));
+    std::print("{}{}{} = {}\n", MAP(i, 2), MAP(i, 1), MAP(i, 0), MAP(rule, i));
   }
 
-  printf("\n");
+  std::print("\n");
 }
 
 struct GlobalMapOpts {
@@ -56,15 +57,15 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
 
   auto M = std::make_unique<BuchiAutomaton>(std::exp2(k), num_states);
 
-  if (verbose > static_cast<int>(OutputType::General)) {
-    printf("# GlobalMap(");
+  dbg(OutputType::General, {
+    std::print("# GlobalMap(");
     if (opts.negated) {
-      printf("x%llu -/> x%llu)", pair.first, pair.second);
+      std::print("x{} -/> x{})", pair.first, pair.second);
     } else {
-      printf("x%llu --> x%llu)", pair.first, pair.second);
+      std::print("x{} --> x{})", pair.first, pair.second);
     }
-    printf("  N = %d, k = %llu, S = 2^k = %llu\n\n", num_states, k, M->num_alphabet);
-  }
+    std::print("  N = {}, k = {}, S = 2^k = {}\n\n", num_states, k, M->num_alphabet);
+  });
 
   auto type = boost::get(boost::vertex_name, M->graph);
   auto label = boost::get(boost::edge_name, M->graph);
@@ -97,7 +98,8 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
   type[initial] = NodeType::Initial;
   M->initial_states.set(0);
 
-  auto width = binary_digits(M->num_alphabet);
+  auto width = binary_digits(M->num_alphabet-1);
+  dbg(OutputType::Debug, std::print("# width = {}\n", width));
 
   // There are 4 "initial" states of the form 0:x2:y2
   for (auto i = 0U; i < M->num_alphabet; i++) {
@@ -109,15 +111,13 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
     // component bits, accounting for the initial state.
     auto u = boost::vertex(COMPOSE_3(0, x2, y2) + 1, M->graph);
 
-    dbg(OutputType::Debug, printf("*  "));
-    dbg(OutputType::Debug, print_binary(i, width));
-    dbg(OutputType::Debug, printf("  -->  [0%llu %llu]\n", x2, y2));
+    dbg(OutputType::Debug, std::print("*  {:0{}b}  -->  [0{} {}]\n", i, width, x2, y2));
 
     auto [e, b] = boost::add_edge(initial, u, M->graph);
     label[e] = i;
   }
 
-  dbg(OutputType::Debug, printf("\n"));
+  dbg(OutputType::Debug, std::print("\n"));
 
   // There are 8 possible combinations of x1:x2:y2 in total
   for (auto i = 0U; i < ECA_SIZE-2; i++) {
@@ -135,20 +135,19 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
       auto y3 = GET_BIT(j, pair.second);
       auto v = boost::vertex(COMPOSE_3(x2, x3, y3) + 1, M->graph);
 
-      dbg(OutputType::Debug, printf("%u  [%llu%llu %llu]  ", i, x1, x2, y2));
-      dbg(OutputType::Debug, print_binary(j, width));
+      dbg(OutputType::Debug, std::print("{}  [{}{} {}]  {:0{}b}", i, x1, x2, y2, j, width));
 
       // x1:x2 -> x2:x3
       //   :y2      :y3
       // if and only if MAP(rule, x1:x2:x3) == y2
       if (MAP(rule, COMPOSE_3(x1, x2, x3)) == y2) {
-        dbg(OutputType::Debug, printf("  -->  %llu  [%llu%llu %llu]\n", COMPOSE_3(x2, x3, y3), x2, x3, y3));
-        dbg(OutputType::Debug, printf("  %llu%llu%llu --> %llu\n", x1, x2, x3, y2));
+        dbg(OutputType::Debug, std::print("  -->  {}  [{}{} {}]\n", COMPOSE_3(x2, x3, y3), x2, x3, y3));
+        dbg(OutputType::Debug, std::print("  {}{}{} --> {}\n", x1, x2, x3, y2));
 
         auto [e, added] = boost::add_edge(u, v, M->graph);
         label[e] = j;
       } else {
-        dbg(OutputType::Debug, printf("  -->  X\n"));
+        dbg(OutputType::Debug, std::print("  -->  X\n"));
 
         if (opts.full) {
           auto [e, added] = boost::add_edge(u, crash, M->graph);
@@ -157,7 +156,7 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
       }
     }
 
-    dbg(OutputType::Debug, printf("\n"));
+    dbg(OutputType::Debug, std::print("\n"));
 
     if (opts.negated) {
       type[u] = NodeType::None;
@@ -170,7 +169,7 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
   M->num_vertices = boost::num_vertices(M->graph);
   M->num_edges = boost::num_edges(M->graph);
 
-  dbg(OutputType::Debug, printf("\n"));
+  dbg(OutputType::Debug, std::print("\n"));
   dbg(OutputType::Debug, M->Print());
 
   if (!opts.full) {
@@ -208,16 +207,14 @@ std::unique_ptr<BuchiAutomaton> Equality(int_type k, int_pair pair) {
   }
 
   M->Resize();
-  if (verbose > static_cast<int>(OutputType::General)) {
-    M->Print();
-  }
+  dbg(OutputType::General, M->Print());
 
   return M;
 }
 
 // Modify a Büchi automaton to ensure that two specified tracks are equal.
 void Equality(BuchiAutomaton& M, int_pair pair) {
-  dbg(OutputType::General, printf("# x%llu == x%llu\n", pair.first, pair.second));
+  dbg(OutputType::General, std::print("# x{} == x{}\n", pair.first, pair.second));
 
   auto label = boost::get(boost::edge_name, M.graph);
 
@@ -227,14 +224,10 @@ void Equality(BuchiAutomaton& M, int_pair pair) {
   }, M.graph);
 
   M.Resize();
-  if (verbose > static_cast<int>(OutputType::General)) {
-    M.Print();
-  }
+  dbg(OutputType::General, M.Print());
 
   M.Reachable();
-  if (verbose > static_cast<int>(OutputType::General)) {
-    M.Print();
-  }
+  dbg(OutputType::General, M.Print());
 }
 
 // Specialized product construction with the inequality automaton.
@@ -244,9 +237,9 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   auto P = std::make_unique<BuchiAutomaton>(M.num_alphabet);
   P->Reserve(2 * M.num_vertices);
 
-  dbg(OutputType::Debug, printf("# Inequality(%llu, %llu)\n", pair.first, pair.second));
-  dbg(OutputType::Debug, printf("# (N = %llu, S = %llu)\n\n", M.num_vertices, M.num_alphabet));
-  dbg(OutputType::Debug, printf("# Initial States\n"));
+  dbg(OutputType::Debug, std::print("# Inequality({}, {})\n", pair.first, pair.second));
+  dbg(OutputType::Debug, std::print("# (N = {}, S = {})\n\n", M.num_vertices, M.num_alphabet));
+  dbg(OutputType::Debug, std::print("# Initial States\n"));
 
   auto vertex_width = decimal_digits(M.num_vertices);
   char fmt_vrtx[MAXLINE];
@@ -280,12 +273,13 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
     dbg(OutputType::Debug, printf(fmt_vrtx, i, EQ));
   }
 
-  dbg(OutputType::Debug, printf("\n"));
+  dbg(OutputType::Debug, std::print("\n"));
 
   char fmt_edge[MAXLINE];
   snprintf(fmt_edge, MAXLINE, "  -->  (%%%du, %%d)", vertex_width);
 
-  auto edge_width = binary_digits(P->num_alphabet);
+  auto edge_width = binary_digits(P->num_alphabet-1);
+  dbg(OutputType::Debug, std::print("# edge width = {}\n", edge_width));
 
   while (!queue.empty()) {
     auto [source, source_component, u] = queue.front();
@@ -304,17 +298,16 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
         component = NE;
       }
 
-      if (verbose > static_cast<int>(OutputType::Debug)) {
-        printf("  ");
-        print_binary(symbol, edge_width);
+      dbg(OutputType::Debug, {
+        std::print("  {:0{}b}", symbol, edge_width);
         printf(fmt_edge, target, component);
-      }
+      });
 
       auto itr = map.find({target, component});
 
       // Add a new vertex to the product machine.
       if (itr == map.end()) {
-        dbg(OutputType::Debug, printf("  *"));
+        dbg(OutputType::Debug, std::print("  *"));
 
         auto v = boost::add_vertex(P->graph);
 
@@ -333,10 +326,10 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
       auto [e, added] = boost::add_edge(u, itr->second, P->graph);
       label[e] = symbol;
 
-      dbg(OutputType::Debug, printf("\n"));
+      dbg(OutputType::Debug, std::print("\n"));
     }
 
-    dbg(OutputType::Debug, printf("\n"));
+    dbg(OutputType::Debug, std::print("\n"));
   }
 
   P->Resize();
@@ -379,9 +372,7 @@ std::unique_ptr<BuchiAutomaton> Inequality(int_type k, int_pair pair) {
   M->initial_states.set(0);
   M->final_states.set(1);
 
-  if (verbose > static_cast<int>(OutputType::General)) {
-    M->Print();
-  }
+  dbg(OutputType::General, M->Print());
 
   return M;
 }
@@ -495,9 +486,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
   v = boost::vertex(start, M->graph);
   type[v] = NodeType::Initial;
 
-  if (verbose > static_cast<int>(OutputType::General)) {
-    M->Print();
-  }
+  dbg(OutputType::General, M->Print());
 
   M->Clean();
 
@@ -505,9 +494,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
     M->final_states.reset(0);
   }
 
-  if (verbose > static_cast<int>(OutputType::General)) {
-    M->Print();
-  }
+  dbg(OutputType::General, M->Print());
 
   return M;
 }
@@ -542,9 +529,7 @@ std::unique_ptr<BuchiAutomaton> Finite(int_type k, int_type n, const std::string
   M->Resize();
   M->final_states.reset(0);
 
-  if (verbose > static_cast<int>(OutputType::General)) {
-    M->Print();
-  }
+  dbg(OutputType::General, M->Print());
 
   auto N = std::make_unique<BuchiAutomaton>(std::exp2(k), 2);
   label = boost::get(boost::edge_name, N->graph);
@@ -609,7 +594,7 @@ std::string to_string(ShiftType shift) {
 // - Similarly, from state 2, transition to state 1 or 2 based on the corresponding track's symbol, or to the crash state if `full` is true and the symbol does not match.
 // - The crash state absorbs all transitions, meaning any symbol will loop back to itself.
 std::unique_ptr<BuchiAutomaton> Shift(int_type k, int_pair pair, ShiftType shift, bool full = false) {
-  dbg(OutputType::Debug, printf("# %sShift(%llu, {%llu, %llu})\n", to_string(shift).c_str(), k, pair.first, pair.second));
+  dbg(OutputType::Debug, std::print("# {}-Shift({}, {{{}, {}}})\n", to_string(shift), k, pair.first, pair.second));
 
   auto num_states = 4;
   if (!full) {
@@ -690,9 +675,7 @@ std::unique_ptr<BuchiAutomaton> Shift(int_type k, int_pair pair, ShiftType shift
 
   M->Resize();
 
-  if (verbose > static_cast<int>(OutputType::General)) {
-    M->Print();
-  }
+  dbg(OutputType::General, M->Print());
 
   return M;
 }
@@ -701,7 +684,7 @@ bool Shift(int_type rule, int_type k, ShiftType shift) {
   BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
   BOOST_ASSERT_MSG(k >= 1, "Parameter k must be at least 1");
 
-  dbg(OutputType::General, printf("# Shift(%llu, %llu, %s)\n", rule, k, to_string(shift).c_str()));
+  dbg(OutputType::General, std::print("# Shift({}, {}, {})\n", rule, k, to_string(shift)));
 
   GlobalMapOpts opts;
   opts.full = false;
@@ -711,7 +694,7 @@ bool Shift(int_type rule, int_type k, ShiftType shift) {
   for (auto i = 1U; i < k; i++) {
     auto N = GlobalMap(rule, k+1, {i, i+1}, opts);
 
-    dbg(OutputType::Debug, printf("# x0 -> x%d\n", i+1));
+    dbg(OutputType::Debug, std::print("# x0 -> x{}\n", i+1));
     M = Intersection(*M, *N);
   }
 
@@ -723,19 +706,17 @@ bool Shift(int_type rule, int_type k, ShiftType shift) {
   M = Intersection(*M, *S);
 
   // for (const auto& s : p) {
-  //   dbg(OutputType::General, printf("# x != %s\n", s.c_str()));
+  //   dbg(OutputType::General, std::print("# x != {}\n", s));
   //   N = Pattern(k+1, 0, s);
 
-  //   dbg(OutputType::General, printf("# [x -> y] && x != %s\n", s.c_str()));
+  //   dbg(OutputType::General, std::print("# [x -> y] && x != {}\n", s));
   //   M = Intersection(*M, *N);
 
-  //   printf("%d  ", !M->Empty());
+  //   std::print("{}  ", !M->Empty());
   // }
 
   auto result = !M->Empty();
-  if (verbose > static_cast<int>(OutputType::Quiet)) {
-    std::cout << "Shift(" << rule << ", " << k << ", " << to_string(shift) << "): " << std::boolalpha << result << std::endl;
-  }
+  dbg(OutputType::Quiet, std::print("Shift({}, {}, {}): {}\n", rule, k, to_string(shift), result));
   return result;
 }
 
@@ -747,19 +728,17 @@ bool FixedPoint(int_type rule) {
   GlobalMapOpts opts;
   opts.full = false;
 
-  dbg(OutputType::General, printf("# FixedPoint(%llu)\n", rule));
+  dbg(OutputType::General, std::print("# FixedPoint({})\n", rule));
 
   // Construct x_0 -> x_1 and x_0 == x_1
-  dbg(OutputType::General, printf("# x0 -> x1\n"));
+  dbg(OutputType::General, std::print("# x0 -> x1\n"));
   auto M = GlobalMap(rule, 2, {0, 1}, opts);
 
-  dbg(OutputType::General, printf("# x0 == x1\n"));
+  dbg(OutputType::General, std::print("# x0 == x1\n"));
   Equality(*M, {0, 1});
 
   auto result = !M->Empty();
-  if (verbose > static_cast<int>(OutputType::Quiet)) {
-    std::cout << "FixedPoint(" << rule << "): " << std::boolalpha << result << std::endl;
-  }
+  dbg(OutputType::Quiet, std::print("FixedPoint({}): {}\n", rule, result));
   return result;
 
   // std::unique_ptr<BuchiAutomaton> N;
@@ -768,27 +747,27 @@ bool FixedPoint(int_type rule) {
   //   // finite support
   //   if (p[i][0] == 'f') {
   //     if ((p[i][1] == '1') && MAP(rule, 0)) {
-  //       printf("X  ");
+  //       std::print("X  ");
   //       continue;
   //     }
 
   //     else if ((p[i][1] == '0') && !MAP(rule, 7)) {
-  //       printf("X  ");
+  //       std::print("X  ");
   //       continue;
   //     }
 
-  //     dbg(OutputType::General, printf("# x0 == %s\n", p[i].c_str()));
+  //     dbg(OutputType::General, std::print("# x0 == {}\n", p[i]));
   //     N = Finite(2, 0, p[i]);
-  //     dbg(OutputType::General, printf("# [x -> x] && x0 == %s\n", p[i].c_str()));
+  //     dbg(OutputType::General, std::print("# [x -> x] && x0 == {}\n", p[i]));
   //   } else {
-  //     dbg(OutputType::General, printf("# x0 != %s\n", p[i].c_str()));
+  //     dbg(OutputType::General, std::print("# x0 != {}\n", p[i]));
   //     N = Pattern(2, 0, p[i]);
-  //     dbg(OutputType::General, printf("# [x -> x] && x0 != %s\n", p[i].c_str()));
+  //     dbg(OutputType::General, std::print("# [x -> x] && x0 != {}\n", p[i]));
   //   }
 
   //   M = Intersection(*M, *N);
 
-  //   // printf("%d  ", !M->Empty());
+  //   // std::print("{}  ", !M->Empty());
   //   return !M->Empty();
   // }
 }
@@ -809,13 +788,13 @@ bool Cycle(int_type rule, int_type k) {
   // for i = {2, ..., k-1}, construct x_i -> x_{i+1} and x_1 -> x_{i+1}
   // finally, construct x_k -> x_1 and x_1 -> x_1 from x_1 -> x_k
 
-  dbg(OutputType::General, printf("# Cycle(%llu, %llu)\n", rule, k));
+  dbg(OutputType::General, std::print("# Cycle({}, {})\n", rule, k));
   auto M = GlobalMap(rule, k+1, {0, 1}, opts);
 
   for (auto i = 1U; i < k; i++) {
     auto N = GlobalMap(rule, k+1, {i, i+1}, opts);
 
-    dbg(OutputType::General, printf("# x0 -> x%u\n", i+1));
+    dbg(OutputType::General, std::print("# x0 -> x{}\n", i+1));
     M = Intersection(*M, *N);
   }
 
@@ -824,15 +803,13 @@ bool Cycle(int_type rule, int_type k) {
   // make sure cycle is a proper k-cycle
   for (auto i = 1U; i < k; i++) {
     if ((k % i) == 0) {
-      dbg(OutputType::General, printf("# x0 != x%u\n", i));
+      dbg(OutputType::General, std::print("# x0 != x{}\n", i));
       M = Inequality(*M, {0, i});
     }
   }
 
   auto result = !M->Empty();
-  if (verbose > static_cast<int>(OutputType::Quiet)) {
-    std::cout << "Cycle(" << rule << ", " << k << "): " << std::boolalpha << result << std::endl;
-  }
+  dbg(OutputType::Quiet, std::print("Cycle({}, {}): {}\n", rule, k, result));
   return result;
 }
 
@@ -842,36 +819,36 @@ bool Cycle(int_type rule, int_type k) {
 // only if there exist k distinct configurations x_1, ..., x_k evolving to a
 // single configuration y after one application of the global map.
 void Predecessor(int_type rule, int_type k, const std::vector<std::string>& p) {
-  dbg(OutputType::General, printf("# x0 -> y\n"));
+  dbg(OutputType::General, std::print("# x0 -> y\n"));
   auto M = GlobalMap(rule, k+1, {0, k});
 
   std::unique_ptr<BuchiAutomaton> N;
   for (auto i = 1U; i < k; i++) {
-    dbg(OutputType::General, printf("# x%u -> y\n", i));
+    dbg(OutputType::General, std::print("# x{} -> y\n", i));
     N = GlobalMap(rule, k+1, {i, k});
 
-    dbg(OutputType::General, printf("# x0, ..., x%u -> y\n", i));
+    dbg(OutputType::General, std::print("# x0, ..., x{} -> y\n", i));
     M = Intersection(*M, *N);
   }
 
   for (auto i = 0UL; i < k-1; i++) {
     for (auto j = i+1; j < k; j++) {
-      dbg(OutputType::General, printf("# [x -> y] && [x%zd != x%zd]\n", i, j));
+      dbg(OutputType::General, std::print("# [x -> y] && [x{} != x{}]\n", i, j));
       M = Inequality(*M, {i, j});
     }
   }
 
-  printf("%d  ", !M->Empty());
+  std::print("{:d}  ", !M->Empty());
 
   // ensure target isn't forbidden
   for (auto i = 0UL; i < p.size(); i++) {
-    dbg(OutputType::General, printf("# y != %s\n", p[i].c_str()));
+    dbg(OutputType::General, std::print("# y != {}\n", p[i]));
     N = Pattern(k+1, k, p[i]);
 
-    dbg(OutputType::General, printf("# [x -> y] && [y != %s]\n", p[i].c_str()));
+    dbg(OutputType::General, std::print("# [x -> y] && [y != {}]\n", p[i]));
     M = Intersection(*M, *N);
 
-    printf("%d  ", !M->Empty());
+    std::print("{:d}  ", !M->Empty());
   }
 }
 
@@ -887,35 +864,35 @@ bool Nilpotent(int_type rule, int_type k) {
   // construct x_0 -> x_1
   // for i = {1, ..., k-1}, construct x_i -> x_{i+1} and take the intersection with x_0 -> x_i to produce x_0 -> x_{i+1}
   // at the end, the machine is x_0 -> x_k
-  // dbg(OutputType::General, printf("# x%u -> x%u\n", k, k+1));
+  // dbg(OutputType::General, std::print("# x{} -> x{}\n", k, k+1));
   // auto M = GlobalMap(rule, k+2, {k, k+1}, opts);
 
   // // make sure that x_k is a fixed point
-  // dbg(OutputType::General, printf("# [x%u -> x%u] && [x%u == x%u]\n", k, k+1, k, k+1));
+  // dbg(OutputType::General, std::print("# [x{} -> x{}] && [x{} == x{}]\n", k, k+1, k, k+1));
   // Equality(*M, {k, k+1});
 
   // for (auto i = 0U; i < k; i++) {
-  //   dbg(OutputType::General, printf("# x%u -> x%u\n", i, i+1));
+  //   dbg(OutputType::General, std::print("# x{} -> x{}\n", i, i+1));
   //   auto N = GlobalMap(rule, k+2, {i, i+1}, opts);
 
-  //   dbg(OutputType::General, printf("# x0 -> x%u\n", i+1));
+  //   dbg(OutputType::General, std::print("# x0 -> x{}\n", i+1));
   //   M = Intersection(*M, *N);
   // }
 
-  dbg(OutputType::General, printf("# Nilpotent(%llu, %llu)\n", rule, k));
-  dbg(OutputType::General, printf("# x0 -> x1\n"));
+  dbg(OutputType::General, std::print("# Nilpotent({}, {})\n", rule, k));
+  dbg(OutputType::General, std::print("# x0 -> x1\n"));
   auto M = GlobalMap(rule, k+1, {0, 1}, opts);
 
   for (auto i = 1U; i < k; i++) {
-    dbg(OutputType::General, printf("# x%u -> x%u\n", i, i+1));
+    dbg(OutputType::General, std::print("# x{} -> x{}\n", i, i+1));
     auto N = GlobalMap(rule, k+1, {i, i+1}, opts);
 
-    dbg(OutputType::General, printf("# x0 -> x%u\n", i+1));
+    dbg(OutputType::General, std::print("# x0 -> x{}\n", i+1));
     M = Intersection(*M, *N);
   }
 
   // make sure that x_k is a fixed point
-  dbg(OutputType::General, printf("# [x0 -> x%llu] && [x%llu == x%llu]\n", k, k-1, k));
+  dbg(OutputType::General, std::print("# [x0 -> x{}] && [x{} == x{}]\n", k, k-1, k));
   Equality(*M, {k-1, k});
 
   for (auto i = 0U; i < k; i++) {
@@ -924,32 +901,24 @@ bool Nilpotent(int_type rule, int_type k) {
 
   // M->final_states.reset(0);
 
-  if (verbose > static_cast<int>(OutputType::General)) {
-    M->Print();
-  }
+  dbg(OutputType::General, M->Print());
 
   if (M->num_vertices == 0) {
-    if (verbose > static_cast<int>(OutputType::Quiet)) {
-      std::cout << "Nilpotent(" << rule << ", " << k << "): false" << std::endl;
-    }
+    dbg(OutputType::Quiet, std::print("Nilpotent({}, {}): false\n", rule, k));
     return false;
   }
 
   auto map = M->Map();
   auto R = M->Determinize(*map);
 
-  if (verbose > static_cast<int>(OutputType::General)) {
-    R->Print();
-  }
+  dbg(OutputType::General, R->Print());
 
   // R->Clean();
   // R->Minimize();
   // R->Clean();
 
   auto result = R->Universal();
-  if (verbose > static_cast<int>(OutputType::Quiet)) {
-    std::cout << "Nilpotent(" << rule << ", " << k << "): " << std::boolalpha << result << std::endl;
-  }
+  dbg(OutputType::Quiet, std::print("Nilpotent({}, {}): {}\n", rule, k, result));
 
   return result;
 }
@@ -982,40 +951,40 @@ bool InDegree(int_type rule, int_type k) {
   GlobalMapOpts opts;
   // opts.full = false;
   opts.negated = true;
-  dbg(OutputType::General, printf("# InDegree(%llu, %llu)\n", rule, k));
-  dbg(OutputType::General, printf("# u -/> y\n"));
+  dbg(OutputType::General, std::print("# InDegree({}, {})\n", rule, k));
+  dbg(OutputType::General, std::print("# u -/> y\n"));
   auto M = GlobalMap(rule, k+2, {k+1, 0}, opts);
 
   for (auto i = 1UL; i <= k; i++) {
-    dbg(OutputType::General, printf("# [u -/> y] && (x%zd != u)\n", i));
+    dbg(OutputType::General, std::print("# [u -/> y] && (x{} != u)\n", i));
     M = Inequality(*M, {i, k+1});
   }
 
   for (auto i = 1U; i <= k; i++) {
-    dbg(OutputType::General, printf("# x%u -/> y\n", i));
+    dbg(OutputType::General, std::print("# x{} -/> y\n", i));
     auto N = GlobalMap(rule, k+2, {i, 0}, opts);
 
-    dbg(OutputType::General, printf("# [u -/> y] || (x%u -/> y)\n", i));
+    dbg(OutputType::General, std::print("# [u -/> y] || (x{} -/> y)\n", i));
     M = DisjointUnion(*M, *N);
   }
 
   // for (auto i = 1UL; i <= k; i++) {
-  //   dbg(OutputType::General, printf("# x%zd -/> y\n", i));
+  //   dbg(OutputType::General, std::print("# x{} -/> y\n", i));
   //   auto N = GlobalMap(r, k+2, {i, 0}, opts);
-  //   dbg(OutputType::General, printf("# [u -/> y] || (x%zd -/> y)\n", i));
+  //   dbg(OutputType::General, std::print("# [u -/> y] || (x{} -/> y)\n", i));
   //   M = DisjointUnion(*M, *N);
   // }
 
   for (auto i = 1U; i < k; i++) {
     for (auto j = i+1; j <= k; j++) {
-      dbg(OutputType::General, printf("# x%u == x%u\n", i, j));
+      dbg(OutputType::General, std::print("# x{} == x{}\n", i, j));
       auto N = Equality(k+2, {i, j});
-      dbg(OutputType::General, printf("# [u -/> y] || [x -/> y] || (x%u == x%u)\n", i, j));
+      dbg(OutputType::General, std::print("# [u -/> y] || [x -/> y] || (x{} == x{})\n", i, j));
       M = DisjointUnion(*M, *N);
     }
   }
 
-  dbg(OutputType::General, printf("# [u -/> y] || [x -/> y] || [x_i == x_j]\n"));
+  dbg(OutputType::General, std::print("# [u -/> y] || [x -/> y] || [x_i == x_j]\n"));
 
   // Remove track k+1 (u).
   M->ProjectLabel();
@@ -1030,9 +999,7 @@ bool InDegree(int_type rule, int_type k) {
   // R->Minimize();
 
   bool result = !R->Universal();
-  if (verbose > static_cast<int>(OutputType::General)) {
-    std::cout << "InDegree(" << rule << ", " << k << "): " << std::boolalpha << result << std::endl;
-  }
+  dbg(OutputType::General, std::print("InDegree({}, {}): {}\n", rule, k, result));
   return result;
   // boost::write_graphviz(std::cout, R->graph, boost::default_writer(), make_label_writer(boost::get(boost::edge_name, R->graph)));
 }
@@ -1046,24 +1013,23 @@ bool Injective(int_type rule) {
   GlobalMapOpts opts;
   opts.full = false;
 
-  dbg(OutputType::General, printf("# x -> z\n"));
+  dbg(OutputType::General, std::print("# Injective({})\n", rule));
+  dbg(OutputType::General, std::print("# x -> z\n"));
   auto M = GlobalMap(rule, 3, {0, 2}, opts);
 
-  dbg(OutputType::General, printf("# y -> z\n"));
+  dbg(OutputType::General, std::print("# y -> z\n"));
   auto N = GlobalMap(rule, 3, {1, 2}, opts);
 
-  dbg(OutputType::General, printf("# (x -> z) && (y -> z)\n"));
+  dbg(OutputType::General, std::print("# (x -> z) && (y -> z)\n"));
   M = Intersection(*M, *N);
 
-  dbg(OutputType::General, printf("# (x -> z) && (y -> z) && (x != y)\n"));
+  dbg(OutputType::General, std::print("# (x -> z) && (y -> z) && (x != y)\n"));
   M = Inequality(*M, {0, 1});
 
   // M->Minimize();
 
   auto result = M->Empty();
-  if (verbose > static_cast<int>(OutputType::Quiet)) {
-    std::cout << "Injective(" << rule << "): " << std::boolalpha << result << std::endl;
-  }
+  dbg(OutputType::Quiet, std::print("Injective({}): {}\n", rule, result));
   return result;
 }
 
@@ -1075,39 +1041,34 @@ bool Surjective(int_type rule) {
   GlobalMapOpts opts;
   opts.full = false;
 
-  dbg(OutputType::General, printf("# x -> y\n"));
+  dbg(OutputType::General, std::print("# Surjective({})\n", rule));
+  dbg(OutputType::General, std::print("# x -> y\n"));
   auto M = GlobalMap(rule, 2, {1, 0}, opts);
 
-  dbg(OutputType::General, printf("# _ -> y\n"));
+  dbg(OutputType::General, std::print("# _ -> y\n"));
   M->ProjectLabel();
 
   auto map = M->Map();
   auto R = M->Determinize(*map);
 
-  if (verbose > static_cast<int>(OutputType::General)) {
-    R->Print();
-  }
+  dbg(OutputType::General, R->Print());
 
   // R->Clean();
   // R->Minimize();
 
   auto result = R->Universal();
-  if (verbose > static_cast<int>(OutputType::Quiet)) {
-    std::cout << "Surjective(" << rule << "): " << std::boolalpha << result << std::endl;
-  }
+  dbg(OutputType::Quiet, std::print("Surjective({}): {}\n", rule, result));
   return result;
 }
 
-/**
-  * Generate the canonical one-step verifying automaton.
- **/
+// Generate the canonical one-step verifying automaton
 void Canonical(int_type r) {
   BuchiAutomaton B(DE_BRUIJN_ALPHABET, DE_BRUIJN_SIZE);
   TransitionMap de_bruijn;
 
   RuleTable(r);
 
-  printf("# x -> y\n");
+  std::print("# x -> y\n");
   auto M = GlobalMap(r, 2, {0, 1});
 
   // 8 transitions in total
@@ -1120,16 +1081,15 @@ void Canonical(int_type r) {
   B.initial_states.set(1);
   B.final_states.set();
 
-  printf("# DE BRUIJN\n");
+  std::print("# DE BRUIJN\n");
   B.Print();
-  std::flush(std::cout);
 
   exit(EXIT_SUCCESS);
 }
 
 // Apply the global map of a given rule for a given pattern n of width k.
 int_type Map(int_type rule, int_type n, int_type k) {
-  const static auto mask = 0x7U;
+  constexpr static auto mask = 0x7U;
 
   if (k == 0) {
     return n;
@@ -1139,18 +1099,13 @@ int_type Map(int_type rule, int_type n, int_type k) {
   auto step = 0;
   auto count = 0UL;
 
-  if (verbose > static_cast<int>(OutputType::Debug) && k > 1) {
-    printf("p(");
-    print_binary(n, 2*k+1);
-    printf(")\n\n");
+  dbg(OutputType::Debug, std::print("# Map({}, {:0{}b}, {})\n", rule, n, 2*k+1, k));
+  if (verbose > std::to_underlying(OutputType::Debug) && k > 1) {
+    std::print("# p({:0{}b})\n", n, 2*k+1);
   }
 
   while (count < width) {
-    if (verbose > static_cast<int>(OutputType::Debug)) {
-      printf("p(");
-      print_binary(n & mask, 3);
-      printf(")  =  %llu\n", MAP(rule, n & mask));
-    }
+    dbg(OutputType::Debug, std::print("p({:0{}b})  =  {}\n", n & mask, 3, MAP(rule, n & mask)););
 
     step = step | (MAP(rule, n & mask) << count);
 
@@ -1158,7 +1113,7 @@ int_type Map(int_type rule, int_type n, int_type k) {
     count++;
   }
 
-  dbg(OutputType::Debug, std::cout << std::endl);
+  dbg(OutputType::Debug, std::print("\n"));
 
   return Map(rule, step, k-1);
 }
@@ -1210,7 +1165,7 @@ std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
 
     queue.pop();
 
-    dbg(OutputType::Debug, printf("(%llu, %llu)\n", q_M, q_T));
+    dbg(OutputType::Debug, std::print("({}, {})\n", q_M, q_T));
 
     auto u = boost::vertex(q_M, M.graph);
     auto q = COMPOSE_3(q_M, 0, q_T);
@@ -1232,7 +1187,7 @@ std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
       // The transition leaves q_T and goes to (q_T & 0x1) : a
       de_bruijn.insert({{q, b}, k});
 
-      dbg(OutputType::Debug, printf("  -->  (%llu, %llu)\n\n", q_M, COMPOSE_3(0, q_T & 0x1, a)));
+      dbg(OutputType::Debug, std::print("  -->  ({}, {})\n\n", q_M, COMPOSE_3(0, q_T & 0x1, a)));
 
       if (!visited[k]) {
         visited.set(k);
@@ -1246,9 +1201,7 @@ std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
 
   B->Init(de_bruijn);
 
-  if (verbose > static_cast<int>(OutputType::Debug)) {
-    B->Print();
-  }
+  dbg(OutputType::Debug, B->Print());
 
   auto map = B->Map();
   auto N = B->RabinScott(*map);
@@ -1272,9 +1225,7 @@ std::unique_ptr<BuchiAutomaton> Top(int_type k) {
   B->initial_states.set(0);
   B->final_states.set();
 
-  if (verbose > static_cast<int>(OutputType::Debug)) {
-    B->Print();
-  }
+  dbg(OutputType::Debug, B->Print());
 
   return B;
 }
@@ -1287,7 +1238,7 @@ void Minimal(int_type rule, int_type k) {
     B = Cover(rule, *B);
   }
 
-  printf("%llu,", B->num_vertices);
+  std::print("{},", B->num_vertices);
 }
 
 /**
@@ -1295,30 +1246,30 @@ void Minimal(int_type rule, int_type k) {
   * infinite elementary cellular automaton.
  **/
 void Run(int_type r, int_type k, const std::vector<std::string>& p) {
-  if (verbose > static_cast<int>(OutputType::Debug)) {
-    printf("rule = %llu\n", r);
-    printf("k    = %llu\n\n", k);
-    printf("p    = {");
+  dbg(OutputType::Debug, {
+    std::print("rule = {}\n", r);
+    std::print("k    = {}\n\n", k);
+    std::print("p    = {{\n");
     for (auto& s : p) {
-      std::cout << s << "\n";
+      std::print("  {}\n", s);
     }
-    printf("}\n\n");
+    std::print("}}\n\n");
 
     RuleTable(r);
-  }
+  });
 
-  printf("%d  ", Injective(r));
-  printf("%d  ", Surjective(r));
+  std::print("{:d}  ", Injective(r));
+  std::print("{:d}  ", Surjective(r));
   // FixedPoint(r, p);
-  printf("%d  ", Cycle(r, k));
+  std::print("{:d}  ", Cycle(r, k));
   // Predecessor(r, k, p);
-  printf("%d  ", InDegree(r, k));
-  printf("%d  ", Nilpotent(r, k));
-  printf("%d  ", Shift(r, k, ShiftType::Left));
-  printf("%d  ", Shift(r, k, ShiftType::Right));
+  std::print("{:d}  ", InDegree(r, k));
+  std::print("{:d}  ", Nilpotent(r, k));
+  std::print("{:d}  ", Shift(r, k, ShiftType::Left));
+  std::print("{:d}  ", Shift(r, k, ShiftType::Right));
   // Minimal(r, k);
   // Cover(r, nullptr);
-  std::cout << std::endl;
+  std::print("\n");
 }
 
 void Tabulate(int_type k) {
@@ -1337,37 +1288,37 @@ void Tabulate(int_type k) {
   // z.emplace_back("01011");
   // z.emplace_back("01111");
 
-  // for (auto i = 0; i < 16; i++) {
-  //   printf("%3u  ", i);
-  //   printf("%d  ", binary_digits(i));
-  //   printf("\n");
+  // for (auto i = 0; i < 256; i++) {
+  //   std::print("{:3}  ", i);
+  //   std::print("{} {} ", binary_digits(i), decimal_digits(i));
+  //   std::print("\n");
   // }
 
   for (auto i = 0; i < 256; i++) {
-    printf("%3d  ", i);
-    printf("%d  ", Injective(i));
-    printf("%d  ", Surjective(i));
-    // printf("%d  ", FixedPoint(i, y));
-    // printf("%d  ", FixedPoint(i, z));
-    // printf("%d  ", FixedPoint(i, f0));
-    // printf("%d  ", FixedPoint(i, f1));
-    printf("%d  ", Cycle(i, 1));
-    printf("%d  ", Cycle(i, 2));
-    printf("%d  ", Cycle(i, 3));
-    printf("%d  ", Cycle(i, 4));
-    printf("%d  ", Cycle(i, 5));
-    // printf("%d  ", Cycle(i, 6));
-    // printf("%d  ", Cycle(i, 7));
-    // printf("%d  ", Cycle(i, 8));
-    // printf("%d  ", Cycle(i, 9));
-    printf("%d  ", Nilpotent(i, 1));
-    printf("%d  ", Nilpotent(i, 2));
-    printf("%d  ", Nilpotent(i, 3));
-    printf("%d  ", Nilpotent(i, 4));
-    printf("%d  ", Nilpotent(i, 5));
-    // printf("%d  ", InDegree(i, 1));
-    // printf("%d  ", InDegree(i, 2));
-    // printf("%d  ", InDegree(i, 3));
+    std::print("{:3}", i);
+    std::print("  {:d}", Injective(i));
+    std::print("  {:d}", Surjective(i));
+    // std::print("  {:d}", FixedPoint(i, y));
+    // std::print("  {:d}", FixedPoint(i, z));
+    // std::print("  {:d}", FixedPoint(i, f0));
+    // std::print("  {:d}", FixedPoint(i, f1));
+    std::print("  {:d}", Cycle(i, 1));
+    std::print("  {:d}", Cycle(i, 2));
+    std::print("  {:d}", Cycle(i, 3));
+    std::print("  {:d}", Cycle(i, 4));
+    std::print("  {:d}", Cycle(i, 5));
+    // std::print("  {:d}", Cycle(i, 6));
+    // std::print("  {:d}", Cycle(i, 7));
+    // std::print("  {:d}", Cycle(i, 8));
+    // std::print("  {:d}", Cycle(i, 9));
+    std::print("  {:d}", Nilpotent(i, 1));
+    std::print("  {:d}", Nilpotent(i, 2));
+    std::print("  {:d}", Nilpotent(i, 3));
+    std::print("  {:d}", Nilpotent(i, 4));
+    std::print("  {:d}", Nilpotent(i, 5));
+    // std::print("  {:d}", InDegree(i, 1));
+    // std::print("  {:d}", InDegree(i, 2));
+    // std::print("  {:d}", InDegree(i, 3));
     // Predecessor(i, 1);
     // Predecessor(i, 2);
     // Predecessor(i, 2, x);
@@ -1375,22 +1326,22 @@ void Tabulate(int_type k) {
     // Predecessor(i, 3, z);
     // Predecessor(i, 4, x);
     // Predecessor(i, 5, x);
-    printf("%d  ", Shift(i, 1, ShiftType::Left));
-    printf("%d  ", Shift(i, 2, ShiftType::Left));
-    printf("%d  ", Shift(i, 3, ShiftType::Left));
-    printf("%d  ", Shift(i, 1, ShiftType::Right));
-    printf("%d  ", Shift(i, 2, ShiftType::Right));
-    printf("%d  ", Shift(i, 3, ShiftType::Right));
-    // printf("%d  ", Shift(i, 4, ShiftType::Right, {}));
-    // printf("%d  ", Shift(i, 5, ShiftType::Right, {}));
-    // printf("%d  ", Shift(i, 3, ShiftType::Right, y);
-    // printf("%d  ", Shift(i, 4, ShiftType::Right, y);
-    // printf("%d  ", Shift(i, 5, ShiftType::Right, y);
+    std::print("  {:d}", Shift(i, 1, ShiftType::Left));
+    std::print("  {:d}", Shift(i, 2, ShiftType::Left));
+    std::print("  {:d}", Shift(i, 3, ShiftType::Left));
+    std::print("  {:d}", Shift(i, 1, ShiftType::Right));
+    std::print("  {:d}", Shift(i, 2, ShiftType::Right));
+    std::print("  {:d}", Shift(i, 3, ShiftType::Right));
+    // std::print("  {:d}", Shift(i, 4, ShiftType::Right, {}));
+    // std::print("  {:d}", Shift(i, 5, ShiftType::Right, {}));
+    // std::print("  {:d}", Shift(i, 3, ShiftType::Right, y));
+    // std::print("  {:d}", Shift(i, 4, ShiftType::Right, y));
+    // std::print("  {:d}", Shift(i, 5, ShiftType::Right, y));
     // Minimal(i, 1);
     // Minimal(i, 2);
     // Minimal(i, 3);
     // Minimal(i, 4);
-    printf("\n");
+    std::print("\n");
   }
 }
 

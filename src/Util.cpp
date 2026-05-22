@@ -5,33 +5,24 @@
 int verbose = 1;
 
 std::string dotfile = "";
-size_t num_threads = 1;
+// size_t num_threads = 1;
 
 namespace omega {
 
-void print_state(NodeType s, std::ostream& os) {
+std::string print_state(NodeType s) {
   if (s == NodeType::None) {
-    os << "None";
+    return "None";
   } else if (s == NodeType::Initial) {
-    os << "Initial";
+    return "Initial";
   } else if (s == NodeType::Final) {
-    os << "Final";
+    return "Final";
   } else if (s == NodeType::Final1) {
-    os << "Final1";
+    return "Final1";
   } else if (s == NodeType::Final2) {
-    os << "Final2";
+    return "Final2";
   } else {
-    os << "Both";
+    return "Both";
   }
-}
-
-void print_binary(int_type n, int_type k, std::ostream& os) {
-  for (auto i = 0UL; i < k; i++) {
-    os << (n & 0x1);
-    n >>= 1;
-  }
-  // boost::dynamic_bitset<> set(k, n);
-  // os << set;
 }
 
 }  // namespace omega

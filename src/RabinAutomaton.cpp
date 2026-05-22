@@ -4,17 +4,23 @@
 #include "RabinAutomaton.h"
 #include "Util.h"
 
-#include <cassert>
 #include <cstdio>
 #include <iostream>
 
 #include <boost/graph/strong_components.hpp>
 
+template <>
+struct std::formatter<omega::RabinPair> : std::formatter<std::string_view> {
+    auto format(const omega::RabinPair& p, format_context& ctx) const {
+        return std::format_to(ctx.out(), "L = {}\nR = {}\n", p.left, p.right);
+    }
+};
+
 namespace omega {
 
 std::ostream& operator<<(std::ostream& os, const RabinPair& p) {
   os << "Left:  " << p.left
-     << "\nRight: " << p.right << '\n';
+     << "\nRight: " << p.right << "\n\n";
   return os;
 }
 
@@ -26,12 +32,10 @@ RabinAutomaton::RabinAutomaton(size_type alphabet, size_type vertices)
 void RabinAutomaton::Init(const RabinTransitionMap& map) {
   BOOST_ASSERT(map.size() == num_vertices * num_alphabet);
 
-  // pretty printing of transitions
-  char fmt[MAXLINE];
-  std::snprintf(fmt, MAXLINE, "(%%%dd,  %%%dd)  -->  %%%dd\n",
-      decimal_digits(num_vertices), decimal_digits(num_alphabet), decimal_digits(num_vertices));
+  const auto vertex_width = decimal_digits(num_vertices-1);
+  const auto symbol_width = decimal_digits(num_alphabet-1);
 
-  dbg(OutputType::Quiet, printf("# TRANSITIONS\n"));
+  dbg(OutputType::Quiet, std::print("# TRANSITIONS\n"));
 
   auto label = boost::get(boost::edge_name, graph);
 
@@ -41,8 +45,8 @@ void RabinAutomaton::Init(const RabinTransitionMap& map) {
       auto itr = map.find({i, j});
 
       // the transition system is deterministic
-      assert(itr != map.end());
-      dbg(OutputType::Quiet, printf(fmt, i, j, itr->second));
+      BOOST_ASSERT(itr != map.end());
+      dbg(OutputType::Quiet, std::print("({:{}}, {:{}})  -->  {:{}}\n", i, vertex_width, j, symbol_width, itr->second, vertex_width));
 
       auto [e, b] = boost::add_edge(i, itr->second, graph);
       label[e] = j;
@@ -55,12 +59,10 @@ void RabinAutomaton::Init(const RabinTransitionMap& map) {
 void RabinAutomaton::Print() const {
   Automaton::Print();
 
-  printf("# PAIRS\n");
+  std::print("# PAIRS\n");
   for (const auto& pair : pairs) {
-    std::cout << pair.left << "\n" << pair.right << "\n\n";
+    std::print("{}\n", pair);
   }
-
-  std::flush(std::cout);
 }
 
 /**
@@ -91,7 +93,7 @@ void RabinAutomaton::TestUV(const std::string& U, const std::string& V) {
       // if a matching edge is found, update current vertex to target of edge
       if (symbol == label[*e_itr]) {
         t = boost::target(*e_itr, graph);
-        dbg(OutputType::Quiet, printf("(%lu,  %u)  ->  %lu\n", v, symbol, t));
+        dbg(OutputType::Quiet, std::print("({}, {})  ->  {}\n", v, symbol, t));
         v = t;
 
         break;
@@ -129,7 +131,7 @@ void RabinAutomaton::TestUV(const std::string& U, const std::string& V) {
       auto [itr, inserted] = visited.insert({{v, i}, vertices.size()});
 
       t = boost::target(*e_itr, graph);
-      dbg(OutputType::Quiet, printf("(%lu,  %u)  ->  %lu (%zd)\n", v, symbol, t, i));
+      dbg(OutputType::Quiet, std::print("({}, {})  ->  {} ({})\n", v, symbol, t, i));
       v = t;
 
       if (inserted) {
@@ -147,7 +149,7 @@ void RabinAutomaton::TestUV(const std::string& U, const std::string& V) {
     }
   }
 
-  dbg(OutputType::Quiet, printf("# Cycle found (transient = %ld)\n", vertices.size() - V.length()));
+  dbg(OutputType::Quiet, std::print("# Cycle found (transient = {})\n", vertices.size() - V.length()));
 
   // store cycle in a bitset for comparison against Rabin condition
   boost::dynamic_bitset<> cycle(num_vertices);
@@ -156,29 +158,24 @@ void RabinAutomaton::TestUV(const std::string& U, const std::string& V) {
   // the tail of the vertex list, beginning from start is part of a cycle
   for (auto i = start; i < vertices.size(); i++) {
     cycle.set(index[vertices[i]]);
-    dbg(OutputType::Quiet, printf("%lu  ", vertices[i]));
+    dbg(OutputType::Quiet, std::print("{}  ", vertices[i]));
   }
 
-  if (verbose > static_cast<int>(OutputType::Quiet)) {
-    std::cout << "\n" << cycle << std::endl;
-  }
+  dbg(OutputType::Quiet, std::print("\n{}\n", cycle));
 
   // once the cycle stored in a bitset, iterate through Rabin pairs and look
   // for L and R such that L is disjoint from C and R is non-disjoint from C
   for (const auto& pair : pairs) {
     if ((pair.left & cycle).none() && (pair.right & cycle).any()) {
-      printf("Input accepted\n");
+      std::print("Input accepted\n");
 
-      if (verbose > static_cast<int>(OutputType::Quiet)) {
-        std::cout << "L: " << pair.left << "\nR: " << pair.right << std::endl;
-      }
-
+      dbg(OutputType::Quiet, std::print("{}\n", pair));
       return;
     }
   }
 
   // if control reaches here, no accepting Rabin pair was found
-  printf("Input rejected\n");
+  std::print("Input rejected\n");
 }
 
 /**
@@ -187,12 +184,9 @@ void RabinAutomaton::TestUV(const std::string& U, const std::string& V) {
   * strongly connected component intersecting R.
  **/
 void RabinAutomaton::Clean() {
-  dbg(OutputType::Quiet, printf("# Clean\n\n"));
+  dbg(OutputType::Quiet, std::print("# Clean\n\n"));
 
-  char fmt[MAXLINE];
-  std::snprintf(fmt, MAXLINE, "component(%%%du)  =  %%%dd\n",
-      decimal_digits(num_vertices), decimal_digits(num_vertices));
-
+  const auto width = decimal_digits(num_vertices-1);
   auto pair = pairs.begin();
   while (pair != pairs.end()) {
     graph_t H(graph);
@@ -203,9 +197,7 @@ void RabinAutomaton::Clean() {
       boost::clear_vertex(boost::vertex(i, H), H);
     }
 
-    if (verbose > static_cast<int>(OutputType::General)) {
-      std::cout << pair->left << '\n' << pair->right << "\n\n";
-    }
+    dbg(OutputType::General, std::print("{}\n", *pair));
 
     // Compute the strongly connected components of the resulting graph to see
     // if R intersects a non-trivial component
@@ -220,7 +212,7 @@ void RabinAutomaton::Clean() {
     for (const auto& list : component_lists) {
       for (const auto& u : list) {
         auto index_u = index[u];
-        dbg(OutputType::General, printf(fmt, index, component[index_u]));
+        dbg(OutputType::General, std::print("component({:{}})  =  {:{}}", index_u, width, component[index_u], width));
 
         // A component with a single vertex is trivial unless the vertex has
         // self-loop.
@@ -236,14 +228,14 @@ void RabinAutomaton::Clean() {
       }
     }
 
-    dbg(OutputType::General, printf("\n"));
+    dbg(OutputType::General, std::print("\n"));
 
     // if a vertex in R lies in a strongly connected component, it may lie
     // on a cycle for some input
 
     bool trivial = true;
     ITERATE_BITSET(i, pair->right) {
-      dbg(OutputType::General, printf(fmt, i, component[i]));
+      dbg(OutputType::General, std::print("component({:{}})  =  {:{}}", i, width, component[i], width));
 
       if (component[i] != TRIVIAL) {
         trivial = false;
@@ -252,7 +244,7 @@ void RabinAutomaton::Clean() {
       }
     }
 
-    dbg(OutputType::General, printf("\n"));
+    dbg(OutputType::General, std::print("\n"));
 
     // R does not intersect a non-trivial strongly connected component
     if (trivial) {
@@ -267,12 +259,9 @@ void RabinAutomaton::Clean() {
 
 // An automaton is universal if the language of the complement is empty.
 bool RabinAutomaton::Universal() {
-  char fmt[MAXLINE];
-  std::snprintf(fmt, MAXLINE, "component(%%%dzd)  =  %%%dd\n",
-           decimal_digits(num_vertices), decimal_digits(num_vertices));
+  dbg(OutputType::Quiet, std::print("# Universal()\n\n"));
 
-  dbg(OutputType::Quiet, printf("# Universal()\n\n"));
-
+  const auto width = decimal_digits(num_vertices-1);
   auto universal = false;
   for (auto subset = 0UL; subset < std::exp2(pairs.size()); subset++) {
     graph_t H(graph);
@@ -283,7 +272,7 @@ bool RabinAutomaton::Universal() {
     boost::dynamic_bitset<> pair_set(pairs.size(), subset);
     boost::dynamic_bitset<> clear_set(num_vertices);
 
-    dbg(OutputType::General, std::cout << "Pair Set: " << pair_set << '\n' << '\n');
+    dbg(OutputType::General, std::print("Pair Set: {}\n\n", pair_set));
 
     // If a vertex appears in any of the specified right conditions, then remove it from the graph.
     ITERATE_BITSET(i, ~pair_set) {
@@ -293,8 +282,8 @@ bool RabinAutomaton::Universal() {
       boost::clear_vertex(boost::vertex(i, H), H);
     }
 
-    dbg(OutputType::General, std::cout << "Clear Set: " << clear_set << "\n\n");
-    dbg(OutputType::Debug, printf("Vertices Cleared: %zu\n\n", clear_set.count()));
+    dbg(OutputType::General, std::print("Clear Set: {}\n\n", clear_set));
+    dbg(OutputType::Debug, std::print("Vertices Cleared: {}\n\n", clear_set.count()));
 
     // Compute the strongly connected components of the resulting graph to see
     // if a non-trivial strongly connected component intersects every specified
@@ -322,8 +311,8 @@ bool RabinAutomaton::Universal() {
       }
     }
 
-    if (verbose > static_cast<int>(OutputType::General)) {
-      printf("Non-Trivial Components\n");
+    dbg(OutputType::General, {
+      std::print("Non-Trivial Components\n");
       for (auto& list : component_lists) {
         for (auto& u : list) {
           auto idx_u = index[u];
@@ -331,12 +320,12 @@ bool RabinAutomaton::Universal() {
             break;
           }
 
-          printf(fmt, idx_u, component[idx_u]);
+          std::print("component({:{}})  =  {:{}}\n", idx_u, width, component[idx_u], width);
         }
       }
 
-      printf("\n");
-    }
+      std::print("\n");
+    });
 
     universal = true;
 
@@ -361,10 +350,10 @@ bool RabinAutomaton::Universal() {
           auto idx_u = index[u];
 
           if (pairs[i].left.test(idx_u)) {
-            if (verbose > static_cast<int>(OutputType::General)) {
-              printf(fmt, idx_u, comp);
-              std::cout << pairs[i].left << '\n';
-            }
+            dbg(OutputType::General, {
+              std::print("component({:{}})  =  {:{}}\n", idx_u, width, comp, width);
+              std::print("{}\n", pairs[i].left);
+            });
 
             universal = false;
             break;
@@ -379,25 +368,22 @@ bool RabinAutomaton::Universal() {
 
       // This component intersects every specified left Rabin set.
       if (!universal) {
-        if (verbose > static_cast<int>(OutputType::General)) {
-          printf("Component %d intersects pair set ", comp);
-          std::cout << pair_set << std::endl;
-        }
+        dbg(OutputType::General, std::print("Component {} intersects pair set {}\n", comp, pair_set));
 
         break;
       }
     }
 
     if (!universal) {
-      dbg(OutputType::General, printf("The language of the complement automaton is not empty.\n\n"));
+      dbg(OutputType::General, std::print("The language of the complement automaton is not empty.\n\n"));
       break;
     } else {
-      dbg(OutputType::General, printf("No component intersects every left Rabin set.\n\n"));
+      dbg(OutputType::General, std::print("No component intersects every left Rabin set.\n\n"));
     }
   }
 
   if (universal) {
-    dbg(OutputType::General, printf("The language of the complement automaton is empty.\n"));
+    dbg(OutputType::General, std::print("The language of the complement automaton is empty.\n"));
   }
 
   return universal;
@@ -430,9 +416,9 @@ void RabinAutomaton::Minimize() {
 
   dbg(OutputType::General, printf("# Minimize()\n\n"));
 
+  const auto width = decimal_digits(num_vertices-1);
   char fmt[MAXLINE];
-  std::snprintf(fmt, MAXLINE, "%%%dzd  index = %%%dd  table = ",
-      decimal_digits(num_vertices), decimal_digits(num_vertices));
+  std::snprintf(fmt, MAXLINE, "%%%dzd  index = %%%dd  table = ", width, width);
 
   std::vector<int> equiv(num_vertices);
 
@@ -448,19 +434,17 @@ void RabinAutomaton::Minimize() {
       // This table already exists.
       equiv[i] = itr->second;
 
-      dbg(OutputType::General, printf(fmt, i, equiv[i]));
-      dbg(OutputType::General, std::cout << table[i] << '\n');
+      dbg(OutputType::General, std::print("{:{}}  index = {:{}}  table = {}\n", i, width, equiv[i], width, s));
     } else {
       // Store the bitset and make the i-th index the representative.
       sets.insert({s, i});
       equiv[i] = i;
 
-      dbg(OutputType::General, printf(fmt, i, equiv[i]));
-      dbg(OutputType::General, std::cout << table[i] << " (*)\n");
+      dbg(OutputType::General, std::print("{:{}}  index = {:{}}  table = {} (*)\n", i, width, equiv[i], width, s));
     }
   }
 
-  dbg(OutputType::General, printf("\n"));
+  dbg(OutputType::General, std::print("\n"));
   std::snprintf(fmt, MAXLINE, "  %%%dd", decimal_digits(num_vertices));
 
   // std::vector<int> E0(num_vertices);
@@ -478,21 +462,19 @@ void RabinAutomaton::Minimize() {
   while (!equivalent) {
     rounds++;
 
-    dbg(OutputType::General, printf("%*s:", binary_digits(num_alphabet), "E"));
+    dbg(OutputType::General, std::print("{:{}}:", "E", binary_digits(num_alphabet-1)));
 
     // equiv is the initial equivalence class at the start of the round
     for (size_type i = 0; i < num_vertices; i++) {
       temp[i] = -1;
       prev[i] = equiv[i];
 
-      dbg(OutputType::General, printf(fmt, prev[i]));
+      dbg(OutputType::General, std::print("  {:{}}", prev[i], width));
     }
 
+    auto width = binary_digits(num_alphabet-1);
     for (size_type s = 0; s < num_alphabet; s++) {
-      dbg(OutputType::General,
-        printf("\n");
-        print_binary(s, binary_digits(num_alphabet));
-        printf(":"));
+      dbg(OutputType::General, std::print("\n{:0{}b}:", s, width));
 
       for (size_type i = 0; i < num_vertices; i++) {
         auto u = boost::vertex(i, graph);
@@ -515,10 +497,10 @@ void RabinAutomaton::Minimize() {
           break;
         }
 
-        dbg(OutputType::General, printf(fmt, temp[i]));
+        dbg(OutputType::General, std::print("  {:{}}", temp[i], width));
       }
 
-      dbg(OutputType::General, printf("\n%*s:", binary_digits(num_alphabet), "*"));
+      dbg(OutputType::General, std::print("\n{:{}}:", "*", binary_digits(num_alphabet-1)));
 
       size_t current = 0;
       RabinTransitionMap map(num_vertices);
@@ -542,20 +524,20 @@ void RabinAutomaton::Minimize() {
           equivalent = false;
         }
 
-        dbg(OutputType::General, printf(fmt, equiv[j]));
+        dbg(OutputType::General, std::print("  {:{}}", equiv[j], width));
       }
 
       states = map.size();
     }
 
-    dbg(OutputType::General, printf("\n\n"));
+    dbg(OutputType::General, std::print("\n\n"));
   }
 
-  dbg(OutputType::Quiet, printf("# Rounds  %llu\n", rounds));
+  dbg(OutputType::Quiet, std::print("# Rounds  {}\n", rounds));
 
   // once behavioral equivalence is computed, merge equivalent states
   if (states == num_vertices) {
-    dbg(OutputType::General, printf("# All states behaviorally unique\n\n"));
+    dbg(OutputType::General, std::print("# All states behaviorally unique\n\n"));
     return;
   }
 
@@ -588,7 +570,7 @@ void RabinAutomaton::Minimize() {
     }
   }
 
-  dbg(OutputType::General, printf("# States removed  %llu\n\n", num_vertices-states));
+  dbg(OutputType::General, std::print("# States removed  {}\n\n", num_vertices-states));
 
   graph = H;
 
@@ -611,9 +593,7 @@ void RabinAutomaton::Minimize() {
   num_vertices = states;
   num_edges = boost::num_edges(graph);
 
-  if (verbose > static_cast<int>(OutputType::Quiet)) {
-    Print();
-  }
+  dbg(OutputType::Quiet, Print());
 }
 
 } // namespace omega
