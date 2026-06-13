@@ -852,6 +852,7 @@ void Predecessor(int_type rule, int_type k, const std::vector<std::string>& p) {
   }
 }
 
+// A rule r is nilpotent after k applications if and only if there exists a configuration x_0 such that for all configurations u, u evolves to the same configuration y after k applications of the global map, and y is a fixed point
 bool Nilpotent(int_type rule, int_type k) {
   BOOST_ASSERT_MSG(rule <= 255, "Rule must be in the range [0, 255]");
   BOOST_ASSERT_MSG(k >= 1, "Parameter k must be at least 1");
@@ -861,41 +862,23 @@ bool Nilpotent(int_type rule, int_type k) {
   GlobalMapOpts opts;
   opts.full = false;
 
-  // construct x_0 -> x_1
-  // for i = {1, ..., k-1}, construct x_i -> x_{i+1} and take the intersection with x_0 -> x_i to produce x_0 -> x_{i+1}
-  // at the end, the machine is x_0 -> x_k
-  // dbg(OutputType::General, std::print("# x{} -> x{}\n", k, k+1));
-  // auto M = GlobalMap(rule, k+2, {k, k+1}, opts);
-
-  // // make sure that x_k is a fixed point
-  // dbg(OutputType::General, std::print("# [x{} -> x{}] && [x{} == x{}]\n", k, k+1, k, k+1));
-  // Equality(*M, {k, k+1});
-
-  // for (auto i = 0U; i < k; i++) {
-  //   dbg(OutputType::General, std::print("# x{} -> x{}\n", i, i+1));
-  //   auto N = GlobalMap(rule, k+2, {i, i+1}, opts);
-
-  //   dbg(OutputType::General, std::print("# x0 -> x{}\n", i+1));
-  //   M = Intersection(*M, *N);
-  // }
-
   dbg(OutputType::General, std::print("# Nilpotent({}, {})\n", rule, k));
   dbg(OutputType::General, std::print("# x0 -> x1\n"));
-  auto M = GlobalMap(rule, k+1, {0, 1}, opts);
+  auto M = GlobalMap(rule, k+2, {0, 1}, opts);
 
-  for (auto i = 1U; i < k; i++) {
+  for (auto i = 1U; i <= k; i++) {
     dbg(OutputType::General, std::print("# x{} -> x{}\n", i, i+1));
-    auto N = GlobalMap(rule, k+1, {i, i+1}, opts);
+    auto N = GlobalMap(rule, k+2, {i, i+1}, opts);
 
     dbg(OutputType::General, std::print("# x0 -> x{}\n", i+1));
     M = Intersection(*M, *N);
   }
 
   // make sure that x_k is a fixed point
-  dbg(OutputType::General, std::print("# [x0 -> x{}] && [x{} == x{}]\n", k, k-1, k));
-  Equality(*M, {k-1, k});
+  dbg(OutputType::General, std::print("# [x0 -> x{}] && [x{} == x{}]\n", k+1, k, k+1));
+  Equality(*M, {k, k+1});
 
-  for (auto i = 0U; i < k; i++) {
+  for (auto i = 0U; i <= k; i++) {
     M->ProjectLabel();
   }
 

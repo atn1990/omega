@@ -160,11 +160,9 @@ BOOST_AUTO_TEST_CASE(BaseTest) {
   BOOST_TEST(Cycle(110, 3) == true);
   BOOST_TEST(Cycle(110, 5) == true);
   BOOST_TEST(Cycle(110, 7) == true);
-  BOOST_TEST(Nilpotent(0, 1) == false);
-  BOOST_TEST(Nilpotent(255, 1) == false);
+  BOOST_TEST(Nilpotent(0, 1) == true);
+  BOOST_TEST(Nilpotent(255, 1) == true);
   BOOST_TEST(Nilpotent(204, 1) == true);
-  BOOST_TEST(Nilpotent(0, 2) == true);
-  BOOST_TEST(Nilpotent(255, 2) == true);
   BOOST_TEST(Nilpotent(110, 2) == false);
   BOOST_TEST(Shift(0, 1, ShiftType::Right) == false);
   BOOST_TEST(Shift(255, 1, ShiftType::Right) == false);
