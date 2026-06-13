@@ -3,10 +3,34 @@ VERSION = 5.0
 CC = clang
 CFLAGS = -Wall -Wextra
 
+# Boost location
+#
+# Override any of these on the command line, e.g.
+#   make BOOST_PREFIX=/usr/local
+#   make BOOST_INC=/path/to/include BOOST_LIB=/path/to/lib
+#
+# By default we try to auto-detect the prefix: the Homebrew prefix on macOS
+# (via brew, falling back to /opt/homebrew) and the standard system prefix on
+# Linux, where libboost-all-dev installs into /usr
+UNAME_S := $(shell uname -s)
+
+ifeq ($(UNAME_S),Darwin)
+  BOOST_PREFIX ?= $(shell brew --prefix 2>/dev/null || echo /opt/homebrew)
+else
+  BOOST_PREFIX ?= /usr
+endif
+
+BOOST_INC ?= $(BOOST_PREFIX)/include
+BOOST_LIB ?= $(BOOST_PREFIX)/lib
+
+# Only emit -I/-L for non-standard prefixes so system installs work cleanly
+BOOST_CPPFLAGS = $(if $(filter-out /usr/include,$(BOOST_INC)),-isystem $(BOOST_INC))
+BOOST_LDFLAGS = $(if $(filter-out /usr/lib,$(BOOST_LIB)),-L$(BOOST_LIB))
+
 CPPFLAGS = -DDEBUG_BUILD
 CXX = clang++
 CXXFLAGS = --std=c++23 -Wall -Wextra \
-					 -I. -isystem /opt/homebrew/include \
+					 -I. $(BOOST_CPPFLAGS) \
 					 -Wno-unused-variable -Wno-unused-parameter -g
 
 					 # -Wthread-safety \
@@ -21,7 +45,7 @@ CXXFLAGS = --std=c++23 -Wall -Wextra \
 					 # -Wno-missing-noreturn \
 					 # -Wno-format-nonliteral \
 
-LDFLAGS = -L/opt/homebrew/lib \
+LDFLAGS = $(BOOST_LDFLAGS) \
 					-lboost_program_options \
 					-lboost_stacktrace_basic
 
