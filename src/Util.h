@@ -139,8 +139,8 @@ enum class NodeType {
   Final2,
 };
 
-// Return a string representation of the type of state s
-std::string print_state(NodeType s);
+// Returns a string representation of the type of state s
+std::string_view print_state(NodeType s);
 
 } // namespace omega
 

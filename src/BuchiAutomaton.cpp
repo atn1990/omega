@@ -184,7 +184,7 @@ void BuchiAutomaton::Resize() {
 // are only to useless vertices
 // This is done by repeatedly removing all vertices with no outgoing edges until no more can be removed
 void BuchiAutomaton::Clean() {
-  auto num_removed = 0U;
+  auto num_removed = 0UL;
 
   auto done = false;
   while (!done) {
@@ -192,11 +192,12 @@ void BuchiAutomaton::Clean() {
 
     for (auto [itr, end] = boost::vertices(graph); itr != end; ++itr) {
       if (boost::out_degree(*itr, graph) == 0) {
-        // Removes all in edges. May create additional empty vertices.
+        // Removes all in edges
+        // May create additional empty vertices
         boost::clear_vertex(*itr, graph);
 
-        // Invalidates iterators so they have to be recreated. Must call
-        // clear_vertex() before remove_vertex().
+        // Invalidates iterators so they have to be recreated
+        // Must call clear_vertex() before remove_vertex()
         boost::remove_vertex(*itr, graph);
 
         num_removed++;
