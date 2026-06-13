@@ -74,12 +74,12 @@ $(info $$OBJS = ${OBJS})
 $(info $$TGTS = ${TGTS})
 $(shell mkdir -p $(TMPDIR))
 
-.PHONY: all clean log
+.PHONY: all batch clean log
 
 all: $(TGTS)
 
 batch:
-	$(CC) $(CFLAGS) batch.c -o $(TMPDIR)/$@
+	$(CC) $(CFLAGS) src/batch.c -o $(TMPDIR)/$@
 
 $(TMPDIR)/%.o : src/%.cpp $(HDRS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
