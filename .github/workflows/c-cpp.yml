@@ -15,12 +15,12 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         compiler: [gcc, clang]
         exclude:
-          # Homebrew's boost is built against Apple Clang's libc++, while GNU GCC
-          # uses libstdc++; their std::__cxx11 string ABIs differ, so linking the
-          # compiled boost libs (program_options, stacktrace) with GCC fails with
-          # undefined symbols
-          # No libstdc++-built boost ships on the runner, so a real GNU GCC build
-          # can't link here so skip this cell
+          # Homebrew's boost on macOS is built against LLVM/Apple Clang's libc++,
+          # while GNU GCC uses libstdc++. Mixing the two standard-library
+          # implementations yields incompatible symbols at link time (undefined
+          # references for the compiled boost libs, e.g. program_options and
+          # stacktrace), so a GNU GCC build can't link against the libc++-built
+          # boost without rebuilding boost from source against libstdc++. Skip it.
           - os: macos-latest
             compiler: gcc
 
