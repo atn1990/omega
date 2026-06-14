@@ -94,4 +94,4 @@ log:
 	VERBOSE=3 ./test >& log
 
 clean:
-	$(RM) $(OBJS) $(TGTS)
+	$(RM) $(OBJS) $(TGTS) $(TMPDIR)/batch
