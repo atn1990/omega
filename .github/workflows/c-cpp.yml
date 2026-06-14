@@ -38,9 +38,9 @@ jobs:
       - name: install-boost-macos
         if: runner.os == 'macOS'
         run: |
-          # Remove pre-installed third-party taps on the GitHub runner that trigger
-          # Homebrew's untrusted-tap warning; not needed since boost is a core formula
-          brew untap --force aws/tap azure/bicep || true
+          # Trust pre-installed third-party taps on the GitHub runner that trigger
+          # Homebrew's untrusted-tap warning
+          brew trust aws/tap azure/bicep || true
           brew install boost
       - name: set-compiler
         run: |
