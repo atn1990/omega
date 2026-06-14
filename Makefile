@@ -15,9 +15,9 @@ CFLAGS = -Wall -Wextra
 UNAME_S := $(shell uname -s)
 
 ifeq ($(UNAME_S),Darwin)
-  BOOST_PREFIX ?= $(shell brew --prefix 2>/dev/null || echo /opt/homebrew)
+	BOOST_PREFIX ?= $(shell brew --prefix 2>/dev/null || (test -d /opt/homebrew && echo /opt/homebrew) || echo /usr/local)
 else
-  BOOST_PREFIX ?= /usr
+	BOOST_PREFIX ?= /usr
 endif
 
 BOOST_INC ?= $(BOOST_PREFIX)/include

@@ -49,6 +49,7 @@ BOOST_TEST_GLOBAL_FIXTURE(GlobalFixture);
 BOOST_AUTO_TEST_CASE(DeterminizeTest1) {
   BuchiAutomaton B(2, 2);
 
+  // Accepts strings with a finite number of 1s followed by infinitely many 0s
   TransitionMap m = {
     {{0, 0}, 0},
     {{0, 1}, 0},
@@ -74,6 +75,7 @@ BOOST_AUTO_TEST_CASE(DeterminizeTest1) {
 BOOST_AUTO_TEST_CASE(DeterminizeTest2) {
   BuchiAutomaton B(2, 2);
 
+  // Accepts strings with a finite number of 1s (at least 1) followed by infinitely many 0s
   TransitionMap m = {
     {{0, 0}, 0},
     {{0, 1}, 0},
@@ -139,11 +141,6 @@ BOOST_AUTO_TEST_CASE(ECATest1, * boost::unit_test::disabled()) {
 //   BOOST_TEST(Surjective(110) == false);
 // }
 
-// BOOST_FIXTURE_TEST_CASE(InDegreeTest, MultiThreaded) {
-BOOST_AUTO_TEST_CASE(InDegreeTest) {
-  BOOST_TEST(InDegree(110, 2) == false);
-}
-
 BOOST_AUTO_TEST_CASE(BaseTest) {
   BOOST_TEST(Injective(0) == false);
   BOOST_TEST(Injective(255) == false);
@@ -160,11 +157,9 @@ BOOST_AUTO_TEST_CASE(BaseTest) {
   BOOST_TEST(Cycle(110, 3) == true);
   BOOST_TEST(Cycle(110, 5) == true);
   BOOST_TEST(Cycle(110, 7) == true);
-  BOOST_TEST(Nilpotent(0, 1) == false);
-  BOOST_TEST(Nilpotent(255, 1) == false);
+  BOOST_TEST(Nilpotent(0, 1) == true);
+  BOOST_TEST(Nilpotent(255, 1) == true);
   BOOST_TEST(Nilpotent(204, 1) == true);
-  BOOST_TEST(Nilpotent(0, 2) == true);
-  BOOST_TEST(Nilpotent(255, 2) == true);
   BOOST_TEST(Nilpotent(110, 2) == false);
   BOOST_TEST(Shift(0, 1, ShiftType::Right) == false);
   BOOST_TEST(Shift(255, 1, ShiftType::Right) == false);

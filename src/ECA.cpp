@@ -852,6 +852,7 @@ void Predecessor(int_type rule, int_type k, const std::vector<std::string>& p) {
   }
 }
 
+// A rule r is nilpotent after k applications if and only if there exists a configuration x_0 such that for all configurations u, u evolves to the same configuration y after k applications of the global map, and y is a fixed point
 bool Nilpotent(int_type rule, int_type k) {
   BOOST_ASSERT_MSG(rule <= 255, "Rule must be in the range [0, 255]");
   BOOST_ASSERT_MSG(k >= 1, "Parameter k must be at least 1");
@@ -861,41 +862,23 @@ bool Nilpotent(int_type rule, int_type k) {
   GlobalMapOpts opts;
   opts.full = false;
 
-  // construct x_0 -> x_1
-  // for i = {1, ..., k-1}, construct x_i -> x_{i+1} and take the intersection with x_0 -> x_i to produce x_0 -> x_{i+1}
-  // at the end, the machine is x_0 -> x_k
-  // dbg(OutputType::General, std::print("# x{} -> x{}\n", k, k+1));
-  // auto M = GlobalMap(rule, k+2, {k, k+1}, opts);
-
-  // // make sure that x_k is a fixed point
-  // dbg(OutputType::General, std::print("# [x{} -> x{}] && [x{} == x{}]\n", k, k+1, k, k+1));
-  // Equality(*M, {k, k+1});
-
-  // for (auto i = 0U; i < k; i++) {
-  //   dbg(OutputType::General, std::print("# x{} -> x{}\n", i, i+1));
-  //   auto N = GlobalMap(rule, k+2, {i, i+1}, opts);
-
-  //   dbg(OutputType::General, std::print("# x0 -> x{}\n", i+1));
-  //   M = Intersection(*M, *N);
-  // }
-
   dbg(OutputType::General, std::print("# Nilpotent({}, {})\n", rule, k));
   dbg(OutputType::General, std::print("# x0 -> x1\n"));
-  auto M = GlobalMap(rule, k+1, {0, 1}, opts);
+  auto M = GlobalMap(rule, k+2, {0, 1}, opts);
 
-  for (auto i = 1U; i < k; i++) {
+  for (auto i = 1U; i <= k; i++) {
     dbg(OutputType::General, std::print("# x{} -> x{}\n", i, i+1));
-    auto N = GlobalMap(rule, k+1, {i, i+1}, opts);
+    auto N = GlobalMap(rule, k+2, {i, i+1}, opts);
 
     dbg(OutputType::General, std::print("# x0 -> x{}\n", i+1));
     M = Intersection(*M, *N);
   }
 
   // make sure that x_k is a fixed point
-  dbg(OutputType::General, std::print("# [x0 -> x{}] && [x{} == x{}]\n", k, k-1, k));
-  Equality(*M, {k-1, k});
+  dbg(OutputType::General, std::print("# [x0 -> x{}] && [x{} == x{}]\n", k+1, k, k+1));
+  Equality(*M, {k, k+1});
 
-  for (auto i = 0U; i < k; i++) {
+  for (auto i = 0U; i <= k; i++) {
     M->ProjectLabel();
   }
 
@@ -923,18 +906,18 @@ bool Nilpotent(int_type rule, int_type k) {
   return result;
 }
 
-// Construct a Büchi automaton to check if an ECA has in-degree k.
+// Construct a Büchi automaton to check if an ECA has in-degree k
 //
 // A one-way infinite elementary cellular automaton has in-degree k if and
 // only if there exist k distinct configurations x_1, ..., x_k evolving to a
 // single configuration y after one application of the global map, and any
-// other configuration u does not evolve to y.
+// other configuration u does not evolve to y
 
-// \exists x_1, ..., x_k, y, \forall u
+// \forall u, \exists x_1, ..., x_k, y:
 // [(x_1 -> y) && ... && (x_k -> y) && (x_1 != x_2) && ... && (x_{k-1} != x_k)
 //   && ((u -> y) => (u = x_1) || ... || (u = x_k))]
-
-// \exists x_1, ..., x_k, y, \not\exists u
+// Equivalently:
+// \not\exists u, \exists x_1, ..., x_k, y:
 // [(x_1 -/> y) || ... || (x_k -/> y) || (x_1 == x_2) || ... || (x_{k-1} == x_k)
 //   || ((u -/> y) && (u != x_1) && ... && (u != x_k))]
 bool InDegree(int_type rule, int_type k) {
@@ -948,10 +931,11 @@ bool InDegree(int_type rule, int_type k) {
   // k      x_k
   // k+1    u
 
-  GlobalMapOpts opts;
-  // opts.full = false;
-  opts.negated = true;
   dbg(OutputType::General, std::print("# InDegree({}, {})\n", rule, k));
+
+  GlobalMapOpts opts;
+  opts.negated = true;
+
   dbg(OutputType::General, std::print("# u -/> y\n"));
   auto M = GlobalMap(rule, k+2, {k+1, 0}, opts);
 
@@ -968,13 +952,6 @@ bool InDegree(int_type rule, int_type k) {
     M = DisjointUnion(*M, *N);
   }
 
-  // for (auto i = 1UL; i <= k; i++) {
-  //   dbg(OutputType::General, std::print("# x{} -/> y\n", i));
-  //   auto N = GlobalMap(r, k+2, {i, 0}, opts);
-  //   dbg(OutputType::General, std::print("# [u -/> y] || (x{} -/> y)\n", i));
-  //   M = DisjointUnion(*M, *N);
-  // }
-
   for (auto i = 1U; i < k; i++) {
     for (auto j = i+1; j <= k; j++) {
       dbg(OutputType::General, std::print("# x{} == x{}\n", i, j));
@@ -986,7 +963,7 @@ bool InDegree(int_type rule, int_type k) {
 
   dbg(OutputType::General, std::print("# [u -/> y] || [x -/> y] || [x_i == x_j]\n"));
 
-  // Remove track k+1 (u).
+  // Remove track k+1 (u)
   M->ProjectLabel();
 
   auto map = M->Map();
@@ -1258,15 +1235,15 @@ void Run(int_type r, int_type k, const std::vector<std::string>& p) {
     RuleTable(r);
   });
 
-  std::print("{:d}  ", Injective(r));
-  std::print("{:d}  ", Surjective(r));
+  std::print("{:d}\n", Injective(r));
+  std::print("{:d}\n", Surjective(r));
   // FixedPoint(r, p);
-  std::print("{:d}  ", Cycle(r, k));
+  std::print("{:d}\n", Cycle(r, k));
   // Predecessor(r, k, p);
-  std::print("{:d}  ", InDegree(r, k));
-  std::print("{:d}  ", Nilpotent(r, k));
-  std::print("{:d}  ", Shift(r, k, ShiftType::Left));
-  std::print("{:d}  ", Shift(r, k, ShiftType::Right));
+  std::print("{:d}\n", InDegree(r, k));
+  std::print("{:d}\n", Nilpotent(r, k));
+  std::print("{:d}\n", Shift(r, k, ShiftType::Left));
+  std::print("{:d}\n", Shift(r, k, ShiftType::Right));
   // Minimal(r, k);
   // Cover(r, nullptr);
   std::print("\n");
@@ -1315,9 +1292,9 @@ void Tabulate(int_type k) {
     std::print("  {:d}", Nilpotent(i, 2));
     std::print("  {:d}", Nilpotent(i, 3));
     std::print("  {:d}", Nilpotent(i, 4));
-    std::print("  {:d}", Nilpotent(i, 5));
-    // std::print("  {:d}", InDegree(i, 1));
-    // std::print("  {:d}", InDegree(i, 2));
+    // std::print("  {:d}", Nilpotent(i, 5));
+    std::print("  {:d}", InDegree(i, 1));
+    std::print("  {:d}", InDegree(i, 2));
     // std::print("  {:d}", InDegree(i, 3));
     // Predecessor(i, 1);
     // Predecessor(i, 2);
@@ -1328,12 +1305,10 @@ void Tabulate(int_type k) {
     // Predecessor(i, 5, x);
     std::print("  {:d}", Shift(i, 1, ShiftType::Left));
     std::print("  {:d}", Shift(i, 2, ShiftType::Left));
-    std::print("  {:d}", Shift(i, 3, ShiftType::Left));
+    // std::print("  {:d}", Shift(i, 3, ShiftType::Left));
     std::print("  {:d}", Shift(i, 1, ShiftType::Right));
     std::print("  {:d}", Shift(i, 2, ShiftType::Right));
-    std::print("  {:d}", Shift(i, 3, ShiftType::Right));
-    // std::print("  {:d}", Shift(i, 4, ShiftType::Right, {}));
-    // std::print("  {:d}", Shift(i, 5, ShiftType::Right, {}));
+    // std::print("  {:d}", Shift(i, 3, ShiftType::Right));
     // std::print("  {:d}", Shift(i, 3, ShiftType::Right, y));
     // std::print("  {:d}", Shift(i, 4, ShiftType::Right, y));
     // std::print("  {:d}", Shift(i, 5, ShiftType::Right, y));

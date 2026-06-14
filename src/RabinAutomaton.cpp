@@ -19,8 +19,7 @@ struct std::formatter<omega::RabinPair> : std::formatter<std::string_view> {
 namespace omega {
 
 std::ostream& operator<<(std::ostream& os, const RabinPair& p) {
-  os << "Left:  " << p.left
-     << "\nRight: " << p.right << "\n\n";
+  os << "L = " << p.left << "\nR = " << p.right << "\n\n";
   return os;
 }
 
@@ -282,15 +281,42 @@ bool RabinAutomaton::Universal() {
       boost::clear_vertex(boost::vertex(i, H), H);
     }
 
+    auto num_removed = 0UL;
+    bool done = false;
+    while (!done) {
+      done = true;
+
+      for (auto [itr, end] = boost::vertices(H); itr != end; ++itr) {
+        if (boost::out_degree(*itr, H) == 0) {
+          // Removes all in edges
+          // May create additional empty vertices
+          boost::clear_vertex(*itr, H);
+
+          // Invalidates iterators so they have to be recreated. Must call
+          // clear_vertex() before remove_vertex().
+          boost::remove_vertex(*itr, H);
+
+          num_removed++;
+          done = false;
+          break;
+        }
+      }
+    }
+
     dbg(OutputType::General, std::print("Clear Set: {}\n\n", clear_set));
-    dbg(OutputType::Debug, std::print("Vertices Cleared: {}\n\n", clear_set.count()));
+    dbg(OutputType::Debug, std::print("Vertices Cleared: {}\n\n", num_removed));
+
+    if (boost::num_vertices(H) == 0) {
+      universal = true;
+      break;
+    }
 
     // Compute the strongly connected components of the resulting graph to see
     // if a non-trivial strongly connected component intersects every specified
     // left Rabin condition.
     // If so, then the language of the complement automaton is not empty,
     // therefore this automaton cannot be universal.
-    std::vector<int32_t> component(num_vertices);
+    std::vector<int32_t> component(boost::num_vertices(H));
     uint32_t scc = boost::strong_components(H, &component[0]);
 
     std::vector<std::vector<graph_t::vertex_descriptor>> component_lists(scc);
@@ -329,15 +355,14 @@ bool RabinAutomaton::Universal() {
 
     universal = true;
 
-    // Find any non-trivial component that intersects all specified left Rabin
-    // conditions.
+    // Find any non-trivial component that intersects all specified left Rabin conditions
     for (auto& list : component_lists) {
       auto comp = component[index[list[0]]];
       if (comp == TRIVIAL) {
         continue;
       }
 
-      // If no sets are specified, then any non-trivial component is fine.
+      // If no sets are specified, then any non-trivial component is fine
       if (pair_set.none()) {
         universal = false;
       }
@@ -360,13 +385,13 @@ bool RabinAutomaton::Universal() {
           }
         }
 
-        // The left condition does not intersect the current component.
+        // The left condition does not intersect the current component
         if (universal) {
           break;
         }
       }
 
-      // This component intersects every specified left Rabin set.
+      // This component intersects every specified left Rabin set
       if (!universal) {
         dbg(OutputType::General, std::print("Component {} intersects pair set {}\n", comp, pair_set));
 
@@ -375,15 +400,15 @@ bool RabinAutomaton::Universal() {
     }
 
     if (!universal) {
-      dbg(OutputType::General, std::print("The language of the complement automaton is not empty.\n\n"));
+      dbg(OutputType::General, std::print("The language of the complement automaton is not empty\n\n"));
       break;
     } else {
-      dbg(OutputType::General, std::print("No component intersects every left Rabin set.\n\n"));
+      dbg(OutputType::General, std::print("No component intersects every left Rabin set\n\n"));
     }
   }
 
   if (universal) {
-    dbg(OutputType::General, std::print("The language of the complement automaton is empty.\n"));
+    dbg(OutputType::General, std::print("The language of the complement automaton is empty\n"));
   }
 
   return universal;
