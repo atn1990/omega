@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-24.04, macos-latest]
         compiler: [gcc, clang]
         exclude:
           # Homebrew's boost on macOS is built against LLVM/Apple Clang's libc++,
@@ -40,16 +40,23 @@ jobs:
           brew install boost
       - name: set-compiler
         run: |
-          if [ "${{ matrix.compiler }}" = "gcc" ]; then
-            # Only Linux reaches here (macOS + gcc is excluded above)
-            # ubuntu-latest defaults to GCC 13, whose libstdc++ lacks <print>;
-            # GCC 14 provides the C++23 header
-            echo "CC=gcc-14" >> "$GITHUB_ENV"
-            echo "CXX=g++-14" >> "$GITHUB_ENV"
-          else
-            echo "CC=clang" >> "$GITHUB_ENV"
-            echo "CXX=clang++" >> "$GITHUB_ENV"
-          fi
+          case "${{ matrix.compiler }}" in
+            gcc)
+              # Only Linux reaches here (macOS + gcc is excluded above).
+              # ubuntu-24.04 ships GCC 14, whose libstdc++ provides the C++23
+              # <print> header (GCC 13 does not).
+              echo "CC=gcc-14" >> "$GITHUB_ENV"
+              echo "CXX=g++-14" >> "$GITHUB_ENV"
+              ;;
+            clang)
+              echo "CC=clang" >> "$GITHUB_ENV"
+              echo "CXX=clang++" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "Unknown compiler: ${{ matrix.compiler }}" >&2
+              exit 1
+              ;;
+          esac
       - name: make
         run: make CC="$CC" CXX="$CXX"
       - name: driver
