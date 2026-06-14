@@ -8,21 +8,59 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    # strategy:
-    #   matrix:
-    #     compiler: [gcc, clang]
-    #     os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [gcc, clang]
+        exclude:
+          # Homebrew's boost on macOS is built against LLVM/Apple Clang's libc++,
+          # while GNU GCC uses libstdc++
+          # Mixing the two standard-library implementations yields incompatible
+          # symbols at link time (undefined references for the compiled boost libs,
+          # e.g. program_options and stacktrace), so a GNU GCC build can't link
+          # against the libc++-built boost without rebuilding boost from source
+          # against libstdc++; skip this cell
+          - os: macos-latest
+            compiler: gcc
 
     steps:
-    - uses: actions/checkout@v4
-    - name: install-boost
-      run: |
-        sudo apt-get update
-        sudo apt-get install libboost-all-dev
-    - name: make
-      run: make
-    - name: driver
-      run: ./driver examples/buechi01.aut --verbose=2
-    - name: test
-      run: VERBOSE=2 ./test
+      - uses: actions/checkout@v5
+      - name: install-boost-linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libboost-all-dev
+      - name: install-gcc-linux
+        if: runner.os == 'Linux' && matrix.compiler == 'gcc'
+        run: sudo apt-get install -y g++-14 gcc-14
+      - name: install-boost-macos
+        if: runner.os == 'macOS'
+        run: |
+          brew install boost
+      - name: set-compiler
+        run: |
+          case "${{ matrix.compiler }}" in
+            gcc)
+              # Only Linux reaches here (macOS + gcc is excluded above)
+              # ubuntu-latest ships GCC 14, whose libstdc++ provides the C++23
+              # <print> header (GCC 13 does not)
+              echo "CC=gcc-14" >> "$GITHUB_ENV"
+              echo "CXX=g++-14" >> "$GITHUB_ENV"
+              ;;
+            clang)
+              echo "CC=clang" >> "$GITHUB_ENV"
+              echo "CXX=clang++" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "Unknown compiler: ${{ matrix.compiler }}" >&2
+              exit 1
+              ;;
+          esac
+      - name: make
+        run: make CC="$CC" CXX="$CXX"
+      - name: driver
+        run: ./driver examples/buechi01.aut --verbose=2
+      - name: test
+        run: VERBOSE=2 ./test
