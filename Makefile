@@ -1,7 +1,5 @@
-VERSION = 5.0
-
 CC = clang
-CFLAGS = -Wall -Wextra $(OPTFLAGS)
+CFLAGS = -Wall -Wextra $(OPTFLAGS) $(BUILD_DEFS)
 
 # Build configuration: debug (default) or release
 #
@@ -85,9 +83,14 @@ DEPFLAGS = -MMD -MP
 
 SRCS = $(wildcard src/*.cpp)
 HDRS = $(wildcard src/*.h)
-LIB_OBJS = $(patsubst %.h,$(TMPDIR)/%.o,$(notdir $(HDRS)))
 OBJS = $(patsubst %.cpp,$(TMPDIR)/%.o,$(notdir $(SRCS)))
 TGTS = driver test
+
+# Objects shared by every executable: every compiled source except the
+# per-executable entry points. Derive these from the source list so a
+# header-only file never makes Make chase a non-existent object.
+EXEC_OBJS = $(patsubst %,$(TMPDIR)/%.o,$(TGTS))
+LIB_OBJS = $(filter-out $(EXEC_OBJS),$(OBJS))
 
 .PHONY: all batch clean log
 
