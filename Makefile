@@ -82,7 +82,6 @@ TMPDIR = build
 DEPFLAGS = -MMD -MP
 
 SRCS = $(wildcard src/*.cpp)
-HDRS = $(wildcard src/*.h)
 OBJS = $(patsubst %.cpp,$(TMPDIR)/%.o,$(notdir $(SRCS)))
 TGTS = driver test
 
