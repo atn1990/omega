@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
+#include <sys/wait.h>
 
 static unsigned int k_bound = 8;
 static unsigned int t_bound = 1000000;
