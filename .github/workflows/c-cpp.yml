@@ -16,36 +16,44 @@ jobs:
         compiler: [gcc, clang]
 
     steps:
-    - uses: actions/checkout@v5
-    - name: install-boost-linux
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libboost-all-dev g++-14
-    - name: install-boost-macos
-      if: runner.os == 'macOS'
-      run: |
-        brew untap --force aws/tap azure/bicep || true
-        brew install boost
-    - name: set-compiler
-      run: |
-        if [ "${{ matrix.compiler }}" = "gcc" ]; then
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            # ubuntu-latest defaults to GCC 13, whose libstdc++ lacks <print>
-            # GCC 14 provides the C++23 header
-            echo "CC=gcc-14" >> "$GITHUB_ENV"
-            echo "CXX=g++-14" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v5
+      - name: install-boost-linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libboost-all-dev g++-14 gcc-14
+      - name: install-boost-macos
+        if: runner.os == 'macOS'
+        run: |
+          # Remove pre-installed third-party taps on the GitHub runner that trigger
+          # Homebrew's untrusted-tap warning; not needed since boost is a core formula.
+          brew untap --force aws/tap azure/bicep || true
+          brew install boost
+      - name: install-gcc-macos
+        if: runner.os == 'macOS' && matrix.compiler == 'gcc'
+        run: brew install gcc
+      - name: set-compiler
+        run: |
+          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+            if [ "${{ runner.os }}" = "Linux" ]; then
+              # ubuntu-latest defaults to GCC 13, whose libstdc++ lacks <print>;
+              # GCC 14 provides the C++23 header.
+              echo "CC=gcc-14" >> "$GITHUB_ENV"
+              echo "CXX=g++-14" >> "$GITHUB_ENV"
+            else
+              # On macOS `gcc`/`g++` are Apple Clang shims. Use Homebrew's real
+              # GNU GCC, whose versioned binaries (gcc-NN/g++-NN) are on PATH.
+              ver=$(brew list --versions gcc | grep -oE '[0-9]+' | head -1)
+              echo "CC=gcc-$ver" >> "$GITHUB_ENV"
+              echo "CXX=g++-$ver" >> "$GITHUB_ENV"
+            fi
           else
-            echo "CC=gcc" >> "$GITHUB_ENV"
-            echo "CXX=g++" >> "$GITHUB_ENV"
+            echo "CC=clang" >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
           fi
-        else
-          echo "CC=clang" >> "$GITHUB_ENV"
-          echo "CXX=clang++" >> "$GITHUB_ENV"
-        fi
-    - name: make
-      run: make CC="$CC" CXX="$CXX"
-    - name: driver
-      run: ./driver examples/buechi01.aut --verbose=2
-    - name: test
-      run: VERBOSE=2 ./test
+      - name: make
+        run: make CC="$CC" CXX="$CXX"
+      - name: driver
+        run: ./driver examples/buechi01.aut --verbose=2
+      - name: test
+        run: VERBOSE=2 ./test
