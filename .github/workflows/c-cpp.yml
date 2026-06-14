@@ -8,20 +8,34 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    # strategy:
-    #   matrix:
-    #     compiler: [gcc, clang]
-    #     os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [gcc, clang]
 
     steps:
-    - uses: actions/checkout@v4
-    - name: install-boost
+    - uses: actions/checkout@v5
+    - name: install-boost-linux
+      if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install libboost-all-dev
+        sudo apt-get install -y libboost-all-dev
+    - name: install-boost-macos
+      if: runner.os == 'macOS'
+      run: brew install boost
+    - name: set-compiler
+      run: |
+        if [ "${{ matrix.compiler }}" = "gcc" ]; then
+          echo "CC=gcc" >> "$GITHUB_ENV"
+          echo "CXX=g++" >> "$GITHUB_ENV"
+        else
+          echo "CC=clang" >> "$GITHUB_ENV"
+          echo "CXX=clang++" >> "$GITHUB_ENV"
+        fi
     - name: make
-      run: make
+      run: make CC="$CC" CXX="$CXX"
     - name: driver
       run: ./driver examples/buechi01.aut --verbose=2
     - name: test
