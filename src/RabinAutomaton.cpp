@@ -192,7 +192,7 @@ void RabinAutomaton::Clean() {
     auto index = boost::get(boost::vertex_index, H);
 
     // for each vertex in L, remove its corresponding edges
-    ITERATE_BITSET(i, pair->left) {
+    for (auto i : omega::set_bits(pair->left)) {
       boost::clear_vertex(boost::vertex(i, H), H);
     }
 
@@ -233,7 +233,7 @@ void RabinAutomaton::Clean() {
     // on a cycle for some input
 
     bool trivial = true;
-    ITERATE_BITSET(i, pair->right) {
+    for (auto i : omega::set_bits(pair->right)) {
       dbg(OutputType::General, std::print("component({:{}})  =  {:{}}", i, width, component[i], width));
 
       if (component[i] != TRIVIAL) {
@@ -274,10 +274,11 @@ bool RabinAutomaton::Universal() {
     dbg(OutputType::General, std::print("Pair Set: {}\n\n", pair_set));
 
     // If a vertex appears in any of the specified right conditions, then remove it from the graph.
-    ITERATE_BITSET(i, ~pair_set) {
+    const auto pending = ~pair_set;
+    for (auto i : omega::set_bits(pending)) {
       clear_set = clear_set | pairs[i].right;
     }
-    ITERATE_BITSET(i, clear_set) {
+    for (auto i : omega::set_bits(clear_set)) {
       boost::clear_vertex(boost::vertex(i, H), H);
     }
 
@@ -368,7 +369,7 @@ bool RabinAutomaton::Universal() {
       }
 
       // Check each rabin pair specified in the pair_set and find a common vertex in the component
-      ITERATE_BITSET(i, pair_set) {
+      for (auto i : omega::set_bits(pair_set)) {
         universal = true;
 
         for (auto& u : list) {

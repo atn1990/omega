@@ -32,7 +32,7 @@ void RuleTable(int_type rule) {
 
   // 8 transitions in total
   for (auto i = 0U; i < DE_BRUIJN_TRANSITIONS; i++) {
-    std::print("{}{}{} = {}\n", MAP(i, 2), MAP(i, 1), MAP(i, 0), MAP(rule, i));
+    std::print("{}{}{} = {}\n", map_bit(i, 2), map_bit(i, 1), map_bit(i, 0), map_bit(rule, i));
   }
 
   std::print("\n");
@@ -104,12 +104,12 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
   // There are 4 "initial" states of the form 0:x2:y2
   for (auto i = 0U; i < M->num_alphabet; i++) {
     // decompose i into two bits x2:y2
-    auto x2 = MAP(i, pair.first);
-    auto y2 = MAP(i, pair.second);
+    auto x2 = map_bit(i, pair.first);
+    auto y2 = map_bit(i, pair.second);
 
     // The numbering of states corresponds to the binary representation of its
     // component bits, accounting for the initial state.
-    auto u = boost::vertex(COMPOSE_3(0, x2, y2) + 1, M->graph);
+    auto u = boost::vertex(compose_3(0, x2, y2) + 1, M->graph);
 
     dbg(OutputType::Debug, std::print("*  {:0{}b}  -->  [0{} {}]\n", i, width, x2, y2));
 
@@ -124,24 +124,24 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
     auto u = boost::vertex(i+1, M->graph);
 
     // decompose i into three bits x1:x2:y2
-    auto x1 = GET_BIT(i, 2);
-    auto x2 = GET_BIT(i, 1);
-    auto y2 = GET_BIT(i, 0);
+    auto x1 = get_bit(i, 2);
+    auto x2 = get_bit(i, 1);
+    auto y2 = get_bit(i, 0);
 
     // 4 possible combinations of x3:y3
     for (auto j = 0U; j < M->num_alphabet; j++) {
       // decompose j into two bits x3:y3
-      auto x3 = GET_BIT(j, pair.first);
-      auto y3 = GET_BIT(j, pair.second);
-      auto v = boost::vertex(COMPOSE_3(x2, x3, y3) + 1, M->graph);
+      auto x3 = get_bit(j, pair.first);
+      auto y3 = get_bit(j, pair.second);
+      auto v = boost::vertex(compose_3(x2, x3, y3) + 1, M->graph);
 
       dbg(OutputType::Debug, std::print("{}  [{}{} {}]  {:0{}b}", i, x1, x2, y2, j, width));
 
       // x1:x2 -> x2:x3
       //   :y2      :y3
       // if and only if MAP(rule, x1:x2:x3) == y2
-      if (MAP(rule, COMPOSE_3(x1, x2, x3)) == y2) {
-        dbg(OutputType::Debug, std::print("  -->  {}  [{}{} {}]\n", COMPOSE_3(x2, x3, y3), x2, x3, y3));
+      if (map_bit(rule, compose_3(x1, x2, x3)) == y2) {
+        dbg(OutputType::Debug, std::print("  -->  {}  [{}{} {}]\n", compose_3(x2, x3, y3), x2, x3, y3));
         dbg(OutputType::Debug, std::print("  {}{}{} --> {}\n", x1, x2, x3, y2));
 
         auto [e, added] = boost::add_edge(u, v, M->graph);
@@ -198,7 +198,7 @@ std::unique_ptr<BuchiAutomaton> Equality(int_type k, int_pair pair) {
   type[u] = NodeType::Both;
 
   for (auto i = 0U; i < M->num_alphabet; i++) {
-    if (MAP(i, pair.first) == MAP(i, pair.second)) {
+    if (map_bit(i, pair.first) == map_bit(i, pair.second)) {
       auto [e, added] = boost::add_edge(u, u, M->graph);
       BOOST_ASSERT(added);
 
@@ -220,7 +220,7 @@ void Equality(BuchiAutomaton& M, int_pair pair) {
 
   boost::remove_edge_if([&pair, &label](const auto& edge) {
     auto symbol = label[edge];
-    return MAP(symbol, pair.first) != MAP(symbol, pair.second);
+    return map_bit(symbol, pair.first) != map_bit(symbol, pair.second);
   }, M.graph);
 
   M.Resize();
@@ -257,7 +257,7 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   auto EQ = false;
   auto NE = true;
 
-  ITERATE_BITSET(i, M.initial_states) {
+  for (auto i : omega::set_bits(M.initial_states)) {
     // Add a vertex to the graph representing the state (i, EQ).
     auto u = boost::add_vertex(P->graph);
 
@@ -294,7 +294,7 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
       auto component = source_component;
 
       // If the tracks are not equal, go into the second component.
-      if (GET_BIT(symbol, pair.first) != GET_BIT(symbol, pair.second)) {
+      if (get_bit(symbol, pair.first) != get_bit(symbol, pair.second)) {
         component = NE;
       }
 
@@ -356,7 +356,7 @@ std::unique_ptr<BuchiAutomaton> Inequality(int_type k, int_pair pair) {
   type[v] = NodeType::Final;
 
   for (auto i = 0U; i < M->num_alphabet; i++) {
-    if (GET_BIT(i, pair.first) == GET_BIT(i, pair.second)) {
+    if (get_bit(i, pair.first) == get_bit(i, pair.second)) {
       auto [e, added] = boost::add_edge(u, u, M->graph);
       label[e] = i;
     } else {
@@ -418,7 +418,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
 
     for (auto j = 0U; j < M->num_alphabet; j++) {
       int_type symbol = s[i % s.length()] - '0';
-      if (MAP(j, n) == symbol) {
+      if (map_bit(j, n) == symbol) {
         if (i < s.length()-1 && s[i+1] == '*') {
           std::tie(e, added) = boost::add_edge(v, v, M->graph);
         } else {
@@ -452,7 +452,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
   for (auto j = 0UL; j < M->num_alphabet; j++) {
     if (s[start + 1] != '*') {
       symbol = s[start] - '0';
-      if (MAP(j, n) == symbol) {
+      if (map_bit(j, n) == symbol) {
         auto [e, b] = boost::add_edge(v, w, M->graph);
       } else if (s[s.length() - 1] != '*') {
         auto [e, b] = boost::add_edge(v, u, M->graph);
@@ -461,15 +461,15 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
       label[e] = j;
     } else {
       symbol = s[0] - '0';
-      if (MAP(j, n) == symbol) {
+      if (map_bit(j, n) == symbol) {
         auto [e, b] = boost::add_edge(v, v, M->graph);
         label[e] = j;
       }
 
-      if (MAP(j, n) == (int_type) (s[2] - '0')) {
+      if (map_bit(j, n) == (int_type) (s[2] - '0')) {
         auto [e, b] = boost::add_edge(v, w, M->graph);
         label[e] = j;
-      } else if (MAP(j, n) != symbol) {
+      } else if (map_bit(j, n) != symbol) {
         auto [e, b] = boost::add_edge(v, u, M->graph);
         label[e] = j;
       }
@@ -514,7 +514,7 @@ std::unique_ptr<BuchiAutomaton> Finite(int_type k, int_type n, const std::string
 
   // finite occurrence of s[1]
   for (auto j = 0UL; j < M->num_alphabet; j++) {
-    if (MAP(j, n) != (int_type) (s[1] - '0')) {
+    if (map_bit(j, n) != (int_type) (s[1] - '0')) {
       auto [e, b] = boost::add_edge(v, v, M->graph);
       label[e] = j;
     }
@@ -543,7 +543,7 @@ std::unique_ptr<BuchiAutomaton> Finite(int_type k, int_type n, const std::string
 
   // at least one occurrence of s[1]
   for (auto j = 0UL; j < N->num_alphabet; j++) {
-    if (MAP(j, n) != (int_type) (s[1] - '0')) {
+    if (map_bit(j, n) != (int_type) (s[1] - '0')) {
       auto [e, b] = boost::add_edge(u, u, N->graph);
       label[e] = j;
     }
@@ -621,9 +621,9 @@ std::unique_ptr<BuchiAutomaton> Shift(int_type k, int_pair pair, ShiftType shift
   for (auto i = 0UL; i < M->num_alphabet; i++) {
     auto n = 0;
     if (shift == ShiftType::Left) {
-      n = GET_BIT(i, pair.second);
+      n = get_bit(i, pair.second);
     } else {
-      n = GET_BIT(i, pair.first);
+      n = get_bit(i, pair.first);
     }
 
     auto u = boost::vertex(n+1, M->graph);
@@ -646,15 +646,15 @@ std::unique_ptr<BuchiAutomaton> Shift(int_type k, int_pair pair, ShiftType shift
     for (auto j = 0UL; j < M->num_alphabet; j++) {
       auto n = 0;
       if (shift == ShiftType::Left) {
-        n = GET_BIT(j, pair.second);
+        n = get_bit(j, pair.second);
       } else {
-        n = GET_BIT(j, pair.first);
+        n = get_bit(j, pair.first);
       }
       auto v = boost::vertex(n+1, M->graph);
 
       // previous symbol of x matches the current symbol of y
       if (shift == ShiftType::Left) {
-        if (GET_BIT(j, pair.first) == i) {
+        if (get_bit(j, pair.first) == i) {
           auto [e, added] = boost::add_edge(u, v, M->graph);
           label[e] = j;
         } else if (full) {
@@ -662,7 +662,7 @@ std::unique_ptr<BuchiAutomaton> Shift(int_type k, int_pair pair, ShiftType shift
           label[e] = j;
         }
       } else {
-        if (GET_BIT(j, pair.second) == i) {
+        if (get_bit(j, pair.second) == i) {
           auto [e, added] = boost::add_edge(u, v, M->graph);
           label[e] = j;
         } else if (full) {
@@ -1050,7 +1050,7 @@ void Canonical(int_type r) {
 
   // 8 transitions in total
   for (auto i = 0UL; i < DE_BRUIJN_TRANSITIONS; i++) {
-    de_bruijn.insert({{SOURCE(i), MAP(r, i)}, TARGET(i, 1)});
+    de_bruijn.insert({{source(i), map_bit(r, i)}, target(i, 1)});
   }
 
   B.Init(de_bruijn);
@@ -1082,9 +1082,9 @@ int_type Map(int_type rule, int_type n, int_type k) {
   }
 
   while (count < width) {
-    dbg(OutputType::Debug, std::print("p({:0{}b})  =  {}\n", n & mask, 3, MAP(rule, n & mask)););
+    dbg(OutputType::Debug, std::print("p({:0{}b})  =  {}\n", n & mask, 3, map_bit(rule, n & mask)););
 
-    step = step | (MAP(rule, n & mask) << count);
+    step = step | (map_bit(rule, n & mask) << count);
 
     n = n >> 1;
     count++;
@@ -1110,7 +1110,7 @@ std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
   auto index = boost::get(boost::vertex_index, M.graph);
   auto label = boost::get(boost::edge_name, M.graph);
 
-  ITERATE_BITSET(i, M.initial_states) {
+  for (auto i : omega::set_bits(M.initial_states)) {
     auto u = boost::vertex(i, M.graph);
 
     for (auto [e_itr, e_end] = boost::out_edges(u, M.graph);
@@ -1122,19 +1122,19 @@ std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
 
       queue.push({q_M, a});
 
-      visited.set(COMPOSE_3(q_M, 0, a));
-      B->initial_states.set(COMPOSE_3(q_M, 0, a));
+      visited.set(compose_3(q_M, 0, a));
+      B->initial_states.set(compose_3(q_M, 0, a));
     }
   }
 
   boost::dynamic_bitset<> S = ~M.final_states;
   B->final_states.set();
 
-  ITERATE_BITSET(i, S) {
-    B->final_states.reset(COMPOSE_3(i, 0, 0));
-    B->final_states.reset(COMPOSE_3(i, 0, 1));
-    B->final_states.reset(COMPOSE_3(i, 1, 0));
-    B->final_states.reset(COMPOSE_3(i, 1, 1));
+  for (auto i : omega::set_bits(S)) {
+    B->final_states.reset(compose_3(i, 0, 0));
+    B->final_states.reset(compose_3(i, 0, 1));
+    B->final_states.reset(compose_3(i, 1, 0));
+    B->final_states.reset(compose_3(i, 1, 1));
   }
 
   while (!queue.empty()) {
@@ -1145,7 +1145,7 @@ std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
     dbg(OutputType::Debug, std::print("({}, {})\n", q_M, q_T));
 
     auto u = boost::vertex(q_M, M.graph);
-    auto q = COMPOSE_3(q_M, 0, q_T);
+    auto q = compose_3(q_M, 0, q_T);
 
     for (auto [e_itr, e_end] = boost::out_edges(u, M.graph); e_itr != e_end; ++e_itr) {
       auto v = boost::target(*e_itr, M.graph);
@@ -1158,17 +1158,17 @@ std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
       // The input is a, and the output is b = rho(q : a).
 
       auto a = label[*e_itr];
-      auto b = Map(rule, COMPOSE_3(0, q_T, a), 1);
-      auto k = COMPOSE_3(q_M, q_T & 0x1, a);
+      auto b = Map(rule, compose_3(0, q_T, a), 1);
+      auto k = compose_3(q_M, q_T & 0x1, a);
 
       // The transition leaves q_T and goes to (q_T & 0x1) : a
       de_bruijn.insert({{q, b}, k});
 
-      dbg(OutputType::Debug, std::print("  -->  ({}, {})\n\n", q_M, COMPOSE_3(0, q_T & 0x1, a)));
+      dbg(OutputType::Debug, std::print("  -->  ({}, {})\n\n", q_M, compose_3(0, q_T & 0x1, a)));
 
       if (!visited[k]) {
         visited.set(k);
-        queue.push({q_M, COMPOSE_3(0, q_T & 0x1, a)});
+        queue.push({q_M, compose_3(0, q_T & 0x1, a)});
       }
     }
   }
