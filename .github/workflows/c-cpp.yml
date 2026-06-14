@@ -31,8 +31,8 @@ jobs:
       run: |
         if [ "${{ matrix.compiler }}" = "gcc" ]; then
           if [ "${{ runner.os }}" = "Linux" ]; then
-            # ubuntu-latest defaults to GCC 13, whose libstdc++ lacks <print>;
-            # GCC 14 provides the C++23 header.
+            # ubuntu-latest defaults to GCC 13, whose libstdc++ lacks <print>
+            # GCC 14 provides the C++23 header
             echo "CC=gcc-14" >> "$GITHUB_ENV"
             echo "CXX=g++-14" >> "$GITHUB_ENV"
           else
