@@ -30,7 +30,10 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libboost-all-dev g++-14 gcc-14
+          sudo apt-get install -y libboost-all-dev
+      - name: install-gcc-linux
+        if: runner.os == 'Linux' && matrix.compiler == 'gcc'
+        run: sudo apt-get install -y g++-14 gcc-14
       - name: install-boost-macos
         if: runner.os == 'macOS'
         run: |
