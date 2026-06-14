@@ -3,12 +3,12 @@ VERSION = 5.0
 CC = clang
 CFLAGS = -Wall -Wextra $(OPTFLAGS)
 
-# Build configuration: debug (default) or release.
+# Build configuration: debug (default) or release
 #
 #   make BUILD=release
 #
 # Debug builds are unoptimized, carry debug info, and define DEBUG_BUILD to
-# enable the dbg() logging macros. Release builds optimize and define NDEBUG.
+# enable the dbg() logging macros. Release builds optimize and define NDEBUG
 BUILD ?= debug
 
 ifeq ($(BUILD),release)
@@ -80,7 +80,7 @@ RM = rm -f
 TMPDIR = build
 
 # Auto-generate header dependencies (.d files) alongside each object so that
-# changing a header only rebuilds the objects that actually include it.
+# changing a header only rebuilds the objects that actually include it
 DEPFLAGS = -MMD -MP
 
 SRCS = $(wildcard src/*.cpp)
