@@ -37,38 +37,37 @@ BOOST_INC ?= $(BOOST_PREFIX)/include
 BOOST_LIB ?= $(BOOST_PREFIX)/lib
 
 # Only emit -I/-L for non-standard prefixes so system installs work cleanly
-BOOST_CPPFLAGS = $(if $(filter-out /usr/include,$(BOOST_INC)),-isystem $(BOOST_INC))
+BOOST_CXXFLAGS = $(if $(filter-out /usr/include,$(BOOST_INC)),-isystem $(BOOST_INC))
 BOOST_LDFLAGS = $(if $(filter-out /usr/lib,$(BOOST_LIB)),-L$(BOOST_LIB))
 
 CC = clang
 CFLAGS = -Wall -Wextra $(OPTFLAGS) $(BUILD_DEFS)
 
-CPPFLAGS = $(BUILD_DEFS)
 CXX = clang++
-CXXFLAGS = --std=c++23 -Wall -Wextra $(OPTFLAGS) \
-					 -I. $(BOOST_CPPFLAGS) \
-					 -Wno-unused-variable -Wno-unused-parameter
+CXXFLAGS = --std=c++23 -Wall -Wextra -Wno-unused-variable -Wno-unused-parameter \
+					$(OPTFLAGS) $(BUILD_DEFS) \
+					-I. $(BOOST_CXXFLAGS)
 
-					 # -Wthread-safety \
-					 # -Wfor-loop-analysis \
-					 # -fno-elide-type \
-					 # -fdiagnostics-show-template-tree
-					 # -Weverything \
-					 # -Wno-c++98-compat -Wno-c++98-compat-pedantic \
-					 # -Wno-c++11-compat -Wno-c++11-compat-pedantic \
-					 # -Wno-c++14-compat -Wno-c++14-compat-pedantic \
-					 # -Wno-missing-prototypes \
-					 # -Wno-missing-noreturn \
-					 # -Wno-format-nonliteral \
+					# -Wthread-safety \
+					# -Wfor-loop-analysis \
+					# -fno-elide-type \
+					# -fdiagnostics-show-template-tree
+					# -Weverything \
+					# -Wno-c++98-compat -Wno-c++98-compat-pedantic \
+					# -Wno-c++11-compat -Wno-c++11-compat-pedantic \
+					# -Wno-c++14-compat -Wno-c++14-compat-pedantic \
+					# -Wno-missing-prototypes \
+					# -Wno-missing-noreturn \
+					# -Wno-format-nonliteral \
 
-# Linker search paths / flags only. Library flags go in LDLIBS so they can be
-# placed after the object files on the link line: GNU ld with --as-needed
+# Linker search paths / flags only
+# Library flags go in LDLIBS so they can be placed after the object files
+# on the link line: GNU ld with --as-needed
 # (the default on many Linux toolchains) drops libraries that appear before
-# the objects referencing them, causing undefined-reference errors.
+# the objects referencing them, causing undefined-reference errors
 LDFLAGS = $(BOOST_LDFLAGS)
 
-LDLIBS = -lboost_program_options \
-				 -lboost_stacktrace_basic
+LDLIBS = -lboost_program_options -lboost_stacktrace_basic
 
 					# -fsanitize=thread,undefined,integer,nullability,safe-stack \
 					# -fsanitize-recover=all
@@ -108,7 +107,7 @@ batch: | $(TMPDIR)
 	$(CC) $(CFLAGS) src/batch.c -o $(TMPDIR)/$@
 
 $(TMPDIR)/%.o : src/%.cpp | $(TMPDIR)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEPFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c -o $@ $<
 
 driver: $(LIB_OBJS) $(TMPDIR)/driver.o
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
