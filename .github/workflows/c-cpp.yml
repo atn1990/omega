@@ -24,7 +24,9 @@ jobs:
         sudo apt-get install -y libboost-all-dev g++-14
     - name: install-boost-macos
       if: runner.os == 'macOS'
-      run: brew install boost
+      run: |
+        brew untap aws/tap azure/bicep || true
+        brew install boost
     - name: set-compiler
       run: |
         if [ "${{ matrix.compiler }}" = "gcc" ]; then
