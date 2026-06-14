@@ -1,7 +1,25 @@
 VERSION = 5.0
 
 CC = clang
-CFLAGS = -Wall -Wextra
+CFLAGS = -Wall -Wextra $(OPTFLAGS)
+
+# Build configuration: debug (default) or release.
+#
+#   make BUILD=release
+#
+# Debug builds are unoptimized, carry debug info, and define DEBUG_BUILD to
+# enable the dbg() logging macros. Release builds optimize and define NDEBUG.
+BUILD ?= debug
+
+ifeq ($(BUILD),release)
+  OPTFLAGS = -O2
+  BUILD_DEFS = -DNDEBUG
+else ifeq ($(BUILD),debug)
+  OPTFLAGS = -O0 -g
+  BUILD_DEFS = -DDEBUG_BUILD
+else
+  $(error Unknown BUILD '$(BUILD)'; use 'debug' or 'release')
+endif
 
 # Boost location
 #
@@ -27,11 +45,11 @@ BOOST_LIB ?= $(BOOST_PREFIX)/lib
 BOOST_CPPFLAGS = $(if $(filter-out /usr/include,$(BOOST_INC)),-isystem $(BOOST_INC))
 BOOST_LDFLAGS = $(if $(filter-out /usr/lib,$(BOOST_LIB)),-L$(BOOST_LIB))
 
-CPPFLAGS = -DDEBUG_BUILD
+CPPFLAGS = $(BUILD_DEFS)
 CXX = clang++
-CXXFLAGS = --std=c++23 -Wall -Wextra \
+CXXFLAGS = --std=c++23 -Wall -Wextra $(OPTFLAGS) \
 					 -I. $(BOOST_CPPFLAGS) \
-					 -Wno-unused-variable -Wno-unused-parameter -g
+					 -Wno-unused-variable -Wno-unused-parameter
 
 					 # -Wthread-safety \
 					 # -Wfor-loop-analysis \
@@ -61,37 +79,39 @@ RM = rm -f
 
 TMPDIR = build
 
+# Auto-generate header dependencies (.d files) alongside each object so that
+# changing a header only rebuilds the objects that actually include it.
+DEPFLAGS = -MMD -MP
+
 SRCS = $(wildcard src/*.cpp)
 HDRS = $(wildcard src/*.h)
-DEPS = $(patsubst %.h,$(TMPDIR)/%.o,$(notdir $(HDRS)))
+LIB_OBJS = $(patsubst %.h,$(TMPDIR)/%.o,$(notdir $(HDRS)))
 OBJS = $(patsubst %.cpp,$(TMPDIR)/%.o,$(notdir $(SRCS)))
 TGTS = driver test
-
-$(info $$SRCS = ${SRCS})
-$(info $$HRDS = ${HDRS})
-$(info $$DEPS = ${DEPS})
-$(info $$OBJS = ${OBJS})
-$(info $$TGTS = ${TGTS})
-$(shell mkdir -p $(TMPDIR))
 
 .PHONY: all batch clean log
 
 all: $(TGTS)
 
-batch:
+$(TMPDIR):
+	mkdir -p $@
+
+batch: | $(TMPDIR)
 	$(CC) $(CFLAGS) src/batch.c -o $(TMPDIR)/$@
 
-$(TMPDIR)/%.o : src/%.cpp $(HDRS)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+$(TMPDIR)/%.o : src/%.cpp | $(TMPDIR)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEPFLAGS) -c -o $@ $<
 
-driver: $(DEPS) $(TMPDIR)/driver.o
+driver: $(LIB_OBJS) $(TMPDIR)/driver.o
 	$(CXX) $(LDFLAGS) $^ -o $@
 
-test: $(DEPS) $(TMPDIR)/test.o
+test: $(LIB_OBJS) $(TMPDIR)/test.o
 	$(CXX) $(LDFLAGS) $^ -o $@
 
 log:
 	VERBOSE=3 ./test >& log
 
 clean:
-	$(RM) $(OBJS) $(TGTS) $(TMPDIR)/batch
+	$(RM) -r $(TMPDIR) $(TGTS)
+
+-include $(OBJS:.o=.d)
