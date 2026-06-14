@@ -61,9 +61,14 @@ CXXFLAGS = --std=c++23 -Wall -Wextra $(OPTFLAGS) \
 					 # -Wno-missing-noreturn \
 					 # -Wno-format-nonliteral \
 
-LDFLAGS = $(BOOST_LDFLAGS) \
-					-lboost_program_options \
-					-lboost_stacktrace_basic
+# Linker search paths / flags only. Library flags go in LDLIBS so they can be
+# placed after the object files on the link line: GNU ld with --as-needed
+# (the default on many Linux toolchains) drops libraries that appear before
+# the objects referencing them, causing undefined-reference errors.
+LDFLAGS = $(BOOST_LDFLAGS)
+
+LDLIBS = -lboost_program_options \
+				 -lboost_stacktrace_basic
 
 					# -fsanitize=thread,undefined,integer,nullability,safe-stack \
 					# -fsanitize-recover=all
@@ -106,10 +111,10 @@ $(TMPDIR)/%.o : src/%.cpp | $(TMPDIR)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEPFLAGS) -c -o $@ $<
 
 driver: $(LIB_OBJS) $(TMPDIR)/driver.o
-	$(CXX) $(LDFLAGS) $^ -o $@
+	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 test: $(LIB_OBJS) $(TMPDIR)/test.o
-	$(CXX) $(LDFLAGS) $^ -o $@
+	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 log:
 	VERBOSE=3 ./test >& log
