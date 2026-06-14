@@ -3,7 +3,8 @@
 #   make BUILD=release
 #
 # Debug builds are unoptimized, carry debug info, and define DEBUG_BUILD to
-# enable the dbg() logging macros. Release builds optimize and define NDEBUG
+# enable the dbg() logging macros
+# Release builds are optimized and define NDEBUG
 BUILD ?= debug
 
 ifeq ($(BUILD),release)
@@ -81,7 +82,8 @@ RM = rm -f
 
 # Per-configuration directory for object files and other intermediate build
 # artifacts, so that switching BUILD never reuses objects compiled with a
-# different configuration. The final binaries are written to the repo root.
+# different configuration
+# The final binaries are written to the repo root
 BUILDDIR = build/$(BUILD)
 
 # Auto-generate header dependencies (.d files) alongside each object so that
