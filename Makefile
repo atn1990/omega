@@ -79,51 +79,49 @@ LDLIBS = -lboost_program_options -lboost_stacktrace_basic
 SHELL = /bin/sh
 RM = rm -f
 
-# Per-configuration object directory so that switching BUILD never reuses
-# objects compiled with a different configuration. Debug and release artifacts
-# live side by side under build/.
-TMPDIR = build/$(BUILD)
+# Per-configuration directory for object files and other intermediate build
+# artifacts, so that switching BUILD never reuses objects compiled with a
+# different configuration. The final binaries are written to the repo root.
+BUILDDIR = build/$(BUILD)
 
 # Auto-generate header dependencies (.d files) alongside each object so that
 # changing a header only rebuilds the objects that actually include it
 DEPFLAGS = -MMD -MP
 
 SRCS = $(wildcard src/*.cpp)
-OBJS = $(patsubst %.cpp,$(TMPDIR)/%.o,$(notdir $(SRCS)))
+OBJS = $(patsubst %.cpp,$(BUILDDIR)/%.o,$(notdir $(SRCS)))
 TGTS = driver test
 
 # Objects shared by every executable: every compiled source except the
 # per-executable entry points
 # Derive these from the source list so a header-only file never makes Make
 # chase a non-existent object
-EXEC_OBJS = $(patsubst %,$(TMPDIR)/%.o,$(TGTS))
+EXEC_OBJS = $(patsubst %,$(BUILDDIR)/%.o,$(TGTS))
 LIB_OBJS = $(filter-out $(EXEC_OBJS),$(OBJS))
 
-.PHONY: all batch clean log
+.PHONY: all clean log
 
 all: $(TGTS)
 
-$(TMPDIR):
+$(BUILDDIR):
 	mkdir -p $@
 
-batch: $(TMPDIR)/batch
-
-$(TMPDIR)/batch: src/batch.c | $(TMPDIR)
+batch: src/batch.c
 	$(CC) $(CFLAGS) $< -o $@
 
-$(TMPDIR)/%.o : src/%.cpp | $(TMPDIR)
+$(BUILDDIR)/%.o : src/%.cpp | $(BUILDDIR)
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c -o $@ $<
 
-driver: $(LIB_OBJS) $(TMPDIR)/driver.o
+driver: $(LIB_OBJS) $(BUILDDIR)/driver.o
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-test: $(LIB_OBJS) $(TMPDIR)/test.o
+test: $(LIB_OBJS) $(BUILDDIR)/test.o
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 log:
 	VERBOSE=3 ./test >& log
 
 clean:
-	$(RM) -r build $(TGTS)
+	$(RM) -r build $(TGTS) batch
 
 -include $(OBJS:.o=.d)
