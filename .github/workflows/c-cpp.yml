@@ -12,15 +12,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-latest]
+        os: [ubuntu-latest, macos-latest]
         compiler: [gcc, clang]
         exclude:
           # Homebrew's boost on macOS is built against LLVM/Apple Clang's libc++,
-          # while GNU GCC uses libstdc++. Mixing the two standard-library
-          # implementations yields incompatible symbols at link time (undefined
-          # references for the compiled boost libs, e.g. program_options and
-          # stacktrace), so a GNU GCC build can't link against the libc++-built
-          # boost without rebuilding boost from source against libstdc++. Skip it.
+          # while GNU GCC uses libstdc++
+          # Mixing the two standard-library implementations yields incompatible
+          # symbols at link time (undefined references for the compiled boost libs,
+          # e.g. program_options and stacktrace), so a GNU GCC build can't link
+          # against the libc++-built boost without rebuilding boost from source
+          # against libstdc++; skip this cell
           - os: macos-latest
             compiler: gcc
 
@@ -45,9 +46,9 @@ jobs:
         run: |
           case "${{ matrix.compiler }}" in
             gcc)
-              # Only Linux reaches here (macOS + gcc is excluded above).
-              # ubuntu-24.04 ships GCC 14, whose libstdc++ provides the C++23
-              # <print> header (GCC 13 does not).
+              # Only Linux reaches here (macOS + gcc is excluded above)
+              # ubuntu-latest ships GCC 14, whose libstdc++ provides the C++23
+              # <print> header (GCC 13 does not)
               echo "CC=gcc-14" >> "$GITHUB_ENV"
               echo "CXX=g++-14" >> "$GITHUB_ENV"
               ;;
