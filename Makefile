@@ -106,8 +106,10 @@ all: $(TGTS)
 $(TMPDIR):
 	mkdir -p $@
 
-batch: | $(TMPDIR)
-	$(CC) $(CFLAGS) src/batch.c -o $(TMPDIR)/$@
+batch: $(TMPDIR)/batch
+
+$(TMPDIR)/batch: src/batch.c | $(TMPDIR)
+	$(CC) $(CFLAGS) $< -o $@
 
 $(TMPDIR)/%.o : src/%.cpp | $(TMPDIR)
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c -o $@ $<
