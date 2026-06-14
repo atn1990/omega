@@ -79,7 +79,10 @@ LDLIBS = -lboost_program_options -lboost_stacktrace_basic
 SHELL = /bin/sh
 RM = rm -f
 
-TMPDIR = build
+# Per-configuration object directory so that switching BUILD never reuses
+# objects compiled with a different configuration. Debug and release artifacts
+# live side by side under build/.
+TMPDIR = build/$(BUILD)
 
 # Auto-generate header dependencies (.d files) alongside each object so that
 # changing a header only rebuilds the objects that actually include it
@@ -119,6 +122,6 @@ log:
 	VERBOSE=3 ./test >& log
 
 clean:
-	$(RM) -r $(TMPDIR) $(TGTS)
+	$(RM) -r build $(TGTS)
 
 -include $(OBJS:.o=.d)
