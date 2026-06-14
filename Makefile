@@ -1,6 +1,3 @@
-CC = clang
-CFLAGS = -Wall -Wextra $(OPTFLAGS) $(BUILD_DEFS)
-
 # Build configuration: debug (default) or release
 #
 #   make BUILD=release
@@ -42,6 +39,9 @@ BOOST_LIB ?= $(BOOST_PREFIX)/lib
 # Only emit -I/-L for non-standard prefixes so system installs work cleanly
 BOOST_CPPFLAGS = $(if $(filter-out /usr/include,$(BOOST_INC)),-isystem $(BOOST_INC))
 BOOST_LDFLAGS = $(if $(filter-out /usr/lib,$(BOOST_LIB)),-L$(BOOST_LIB))
+
+CC = clang
+CFLAGS = -Wall -Wextra $(OPTFLAGS) $(BUILD_DEFS)
 
 CPPFLAGS = $(BUILD_DEFS)
 CXX = clang++
