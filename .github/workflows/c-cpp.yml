@@ -25,7 +25,7 @@ jobs:
     - name: install-boost-macos
       if: runner.os == 'macOS'
       run: |
-        brew untap aws/tap azure/bicep || true
+        brew untap --force aws/tap azure/bicep || true
         brew install boost
     - name: set-compiler
       run: |
