@@ -18,8 +18,9 @@ jobs:
           # Homebrew's boost is built against Apple Clang's libc++, while GNU GCC
           # uses libstdc++; their std::__cxx11 string ABIs differ, so linking the
           # compiled boost libs (program_options, stacktrace) with GCC fails with
-          # undefined symbols. No libstdc++-built boost ships on the runner, so a
-          # real GNU GCC build can't link here. Skip this cell.
+          # undefined symbols
+          # No libstdc++-built boost ships on the runner, so a real GNU GCC build
+          # can't link here so skip this cell
           - os: macos-latest
             compiler: gcc
 
@@ -34,15 +35,15 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           # Remove pre-installed third-party taps on the GitHub runner that trigger
-          # Homebrew's untrusted-tap warning; not needed since boost is a core formula.
+          # Homebrew's untrusted-tap warning; not needed since boost is a core formula
           brew untap --force aws/tap azure/bicep || true
           brew install boost
       - name: set-compiler
         run: |
           if [ "${{ matrix.compiler }}" = "gcc" ]; then
-            # Only Linux reaches here (macOS + gcc is excluded above).
+            # Only Linux reaches here (macOS + gcc is excluded above)
             # ubuntu-latest defaults to GCC 13, whose libstdc++ lacks <print>;
-            # GCC 14 provides the C++23 header.
+            # GCC 14 provides the C++23 header
             echo "CC=gcc-14" >> "$GITHUB_ENV"
             echo "CXX=g++-14" >> "$GITHUB_ENV"
           else
