@@ -87,8 +87,9 @@ OBJS = $(patsubst %.cpp,$(TMPDIR)/%.o,$(notdir $(SRCS)))
 TGTS = driver test
 
 # Objects shared by every executable: every compiled source except the
-# per-executable entry points. Derive these from the source list so a
-# header-only file never makes Make chase a non-existent object.
+# per-executable entry points
+# Derive these from the source list so a header-only file never makes Make
+# chase a non-existent object
 EXEC_OBJS = $(patsubst %,$(TMPDIR)/%.o,$(TGTS))
 LIB_OBJS = $(filter-out $(EXEC_OBJS),$(OBJS))
 
