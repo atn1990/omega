@@ -2,7 +2,20 @@
 
 Adrian Trejo Nuñez <atrejo@andrew.cmu.edu>
 
-To build, modify `src/Makefile` so that `BOOSTDIR` and `BOOSTLIB` are set to the paths of the Boost root directory and Boost compiled libraries, respectively.
+To build, run `make` from the repository root. The build needs the [Boost C++
+libraries](https://www.boost.org/); install them with your package manager
+(`brew install boost` on macOS, `sudo apt-get install libboost-all-dev` on
+Debian/Ubuntu).
+
+The `Makefile` auto-detects Boost: it uses the Homebrew prefix on macOS (via
+`brew --prefix`) and the system prefix (`/usr`) on Linux. If Boost lives
+somewhere else, point the build at it with `BOOST_PREFIX`, or set the include
+and library directories separately:
+
+```sh
+make BOOST_PREFIX=/usr/local
+make BOOST_INC=/path/to/include BOOST_LIB=/path/to/lib
+```
 
 Safra's Determinization Algorithm
 
