@@ -90,7 +90,7 @@ using int_type = uint64_t;
 
 // The upper and lower (k-1) bits of k-bit numbers define the source and target of de Bruijn map, respectively.
 constexpr int_type source(int_type x) { return x >> 1; }
-constexpr int_type target(int_type x, unsigned k) { return x & ((1UL << k) - 1); }
+constexpr int_type target(int_type x, unsigned k) { return x & ((static_cast<int_type>(1) << k) - 1); }
 
 // Return the i-th least significant bit of n.
 constexpr int_type get_bit(int_type n, unsigned i) { return (n >> i) & 0x1; }
@@ -109,11 +109,11 @@ constexpr int_type compose_3(int_type x1, int_type x2, int_type x3) {
 #  define dbg(N, x)
 #endif
 
-inline int decimal_digits(std::size_t n) {
+inline int decimal_digits(int_type n) {
   return n > 1 ? static_cast<int>(std::floor(std::log10(n)) + 1) : 1;
 }
 
-inline int binary_digits(std::size_t n) {
+inline int binary_digits(int_type n) {
   return n > 1 ? static_cast<int>(std::floor(std::log2(n))) + 1 : 1;
 }
 
@@ -124,6 +124,7 @@ public:
   using size_type = boost::dynamic_bitset<>::size_type;
 
   explicit dynamic_bitset_iterator(const boost::dynamic_bitset<>& bs) : bs_(bs) {}
+  explicit dynamic_bitset_iterator(boost::dynamic_bitset<>&&) = delete;
 
   class iterator {
   public:
