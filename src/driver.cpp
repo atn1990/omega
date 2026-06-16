@@ -157,7 +157,7 @@ std::unique_ptr<BuchiAutomaton> ReadBuchi(const std::string& filename, Transitio
   auto alphabet = 0U;
   auto states = 0U;
   auto transitions = 0U;
-  auto count = 0U;
+  [[maybe_unused]] auto count = 0U;
 
   boost::dynamic_bitset<> I;
   boost::dynamic_bitset<> F;

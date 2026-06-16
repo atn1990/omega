@@ -282,7 +282,7 @@ bool RabinAutomaton::Universal() {
       boost::clear_vertex(boost::vertex(i, H), H);
     }
 
-    auto num_removed = 0UL;
+    [[maybe_unused]] auto num_removed = 0UL;
     bool done = false;
     while (!done) {
       done = true;
@@ -479,7 +479,7 @@ void RabinAutomaton::Minimize() {
   std::vector<int> names(num_vertices);
 
   size_type states = 0;
-  size_type rounds = 0;
+  [[maybe_unused]] size_type rounds = 0;
 
   auto index = boost::get(boost::vertex_index, graph);
   auto label = boost::get(boost::edge_name, graph);
