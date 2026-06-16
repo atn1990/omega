@@ -14,6 +14,7 @@
 #include <iterator>
 #include <ostream>
 #include <print>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -132,6 +133,7 @@ public:
     using pointer = const size_type*;
     using reference = size_type;
 
+    iterator() = default;
     iterator(const boost::dynamic_bitset<>& bs, size_type pos)
         : bs_(&bs), pos_(pos) {}
 
@@ -152,8 +154,8 @@ public:
     bool operator!=(const iterator& other) const { return !(*this == other); }
 
   private:
-    const boost::dynamic_bitset<>* bs_;
-    size_type pos_;
+    const boost::dynamic_bitset<>* bs_ = nullptr;
+    size_type pos_ = boost::dynamic_bitset<>::npos;
   };
 
   iterator begin() const { return iterator(bs_, bs_.find_first()); }
@@ -162,6 +164,9 @@ public:
 private:
   const boost::dynamic_bitset<>& bs_;
 };
+
+static_assert(std::ranges::input_range<dynamic_bitset_iterator>);
+static_assert(std::input_iterator<dynamic_bitset_iterator::iterator>);
 
 #define dbg_var(os, var) \
   (os) << __FILE__ << ":" << __LINE__ << " (" << __func__ << ") " \
