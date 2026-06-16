@@ -71,7 +71,6 @@ public:
   Automaton &operator=(const Automaton &) = delete;
   Automaton &operator=(Automaton &&) = delete;
 
-  void Reserve(size_type num_vertices);
   void Resize();
   void Print() const;
 

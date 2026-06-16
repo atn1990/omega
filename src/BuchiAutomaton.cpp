@@ -1234,9 +1234,6 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
   const auto B_width = decimal_digits(B.num_vertices-1);
   const auto C_width = binary_digits(C->num_alphabet-1);
 
-  // Speed up graph construction by reserving enough space for vertices to avoid resizing.
-  C->Reserve(3*A.num_vertices*B.num_vertices);
-
   auto label_C = boost::get(boost::edge_name, C->graph);
   auto state_C = boost::get(boost::vertex_name, C->graph);
 
