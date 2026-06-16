@@ -56,7 +56,7 @@ void SafraNode::Update(const TransitionMap& map, int_type symbol) {
 
   // for each state in the label set, find all reachable states under the given
   // symbol and add them to the new label set
-  ITERATE_BITSET(i, label) {
+  for (auto i : dynamic_bitset_iterator(label)) {
     // T.equal_range returns a pair of iterators that give all values that
     // state i maps to under the given symbol
     auto range = map.equal_range({i, symbol});

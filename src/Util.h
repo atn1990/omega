@@ -7,10 +7,15 @@
 #define BOOST_ENABLE_ASSERT_DEBUG_HANDLER
 #define BOOST_STACKTRACE_LINK
 
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <iterator>
+#include <limits>
 #include <ostream>
 #include <print>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -84,20 +89,26 @@ namespace omega {
 
 using int_type = uint64_t;
 
-// The upper and lower (k-1) bits of k-bit numbers define the source and target of de Bruijn map, respectively.
-#define SOURCE(x) (static_cast<int_type>(x) >> 1)
-#define TARGET(x, k) (static_cast<int_type>(x) & ((1UL << (k)) - 1))
-
-// one-step transition map for ECA
-#define MAP(rule, n) (static_cast<int_type>(((rule) >> (n)) & 0x1))
+// The upper and lower (k-1) bits of k-bit numbers define the source and target of de Bruijn map, respectively
+constexpr int_type source(int_type x) {
+  return x >> 1;
+}
+constexpr int_type target(int_type x, unsigned k) {
+  return k >= std::numeric_limits<int_type>::digits ? x : x & ((int_type{1} << k) - 1);
+}
 
 // Return the i-th least significant bit of n
-#define GET_BIT(n, i) (static_cast<int_type>(((n) >> (i)) & 0x1))
+constexpr int_type get_bit(int_type n, unsigned i) {
+  return i >= std::numeric_limits<int_type>::digits ? int_type{0} : (n >> i) & 0x1;
+}
+
+// one-step transition map for ECA: the i-th bit of rule
+constexpr int_type map_bit(int_type rule, unsigned i) { return get_bit(rule, i); }
 
 // combine three bits into one number
-// #define Q3(x1, x2, x3) (((x1) << 2) | ((x2) << 1) | (x3))
-#define COMPOSE_3(x1, x2, x3) \
-  ((((x1) & 0x1) << 2) | (((x2) & 0x1) << 1) | ((x3) & 0x1))
+constexpr int_type compose_3(int_type x1, int_type x2, int_type x3) {
+  return ((x1 & 0x1) << 2) | ((x2 & 0x1) << 1) | (x3 & 0x1);
+}
 
 #ifdef DEBUG_BUILD
 #  define dbg(N, x) if (verbose > std::to_underlying(N)) { x; }
@@ -105,14 +116,65 @@ using int_type = uint64_t;
 #  define dbg(N, x)
 #endif
 
-#define decimal_digits(n) \
-  ((n) > 1 ? static_cast<int>(std::floor(std::log10(n))+1) : 1)
+inline int decimal_digits(int_type n) {
+  return n > 1 ? static_cast<int>(std::floor(std::log10(n)) + 1) : 1;
+}
 
-#define binary_digits(n) \
-  ((n) > 1 ? static_cast<int>(std::floor(std::log2(n)))+1 : 1)
+inline int binary_digits(int_type n) {
+  return n > 1 ? static_cast<int>(std::floor(std::log2(n))) + 1 : 1;
+}
 
-#define ITERATE_BITSET(var, bitset) \
-  for (auto (var) = (bitset).find_first(); (var) != (bitset).npos; (var) = (bitset).find_next(var))
+// Range over the set-bit indices of a dynamic_bitset, for use in a
+// range-based for loop: `for (auto i : dynamic_bitset_iterator(bs)) { ... }`.
+class dynamic_bitset_iterator {
+public:
+  using size_type = boost::dynamic_bitset<>::size_type;
+
+  explicit dynamic_bitset_iterator(const boost::dynamic_bitset<>& bs) : bs_(bs) {}
+  explicit dynamic_bitset_iterator(boost::dynamic_bitset<>&&) = delete;
+
+  class iterator {
+  public:
+    using iterator_category = std::input_iterator_tag;
+    using value_type = size_type;
+    using difference_type = std::ptrdiff_t;
+    using pointer = const size_type*;
+    using reference = size_type;
+
+    iterator() = default;
+    iterator(const boost::dynamic_bitset<>& bs, size_type pos)
+        : bs_(&bs), pos_(pos) {}
+
+    size_type operator*() const { return pos_; }
+
+    iterator& operator++() {
+      pos_ = bs_->find_next(pos_);
+      return *this;
+    }
+
+    iterator operator++(int) {
+      iterator tmp = *this;
+      ++(*this);
+      return tmp;
+    }
+
+    bool operator==(const iterator& other) const { return bs_ == other.bs_ && pos_ == other.pos_; }
+    bool operator!=(const iterator& other) const { return !(*this == other); }
+
+  private:
+    const boost::dynamic_bitset<>* bs_ = nullptr;
+    size_type pos_ = boost::dynamic_bitset<>::npos;
+  };
+
+  iterator begin() const { return iterator(bs_, bs_.find_first()); }
+  iterator end() const { return iterator(bs_, boost::dynamic_bitset<>::npos); }
+
+private:
+  const boost::dynamic_bitset<>& bs_;
+};
+
+static_assert(std::ranges::input_range<dynamic_bitset_iterator>);
+static_assert(std::input_iterator<dynamic_bitset_iterator::iterator>);
 
 #define dbg_var(os, var) \
   (os) << __FILE__ << ":" << __LINE__ << " (" << __func__ << ") " \
