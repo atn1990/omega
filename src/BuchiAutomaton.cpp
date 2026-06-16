@@ -184,7 +184,7 @@ void BuchiAutomaton::Resize() {
 // are only to useless vertices
 // This is done by repeatedly removing all vertices with no outgoing edges until no more can be removed
 void BuchiAutomaton::Clean() {
-  auto num_removed = 0UL;
+  [[maybe_unused]] auto num_removed = 0UL;
 
   auto done = false;
   while (!done) {
@@ -646,7 +646,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   auto empty_index = -1L;
 
   auto num_empty = 0UL;
-  auto num_trees = 1UL;
+  [[maybe_unused]] auto num_trees = 1UL;
 
   auto initial = std::make_shared<SafraTree>(num_vertices, initial_states, final_states);
 
@@ -906,7 +906,7 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
   std::vector<boost::dynamic_bitset<>> state_list;
   std::queue<boost::dynamic_bitset<>> queue;
 
-  size_type num_states = 1;
+  [[maybe_unused]] size_type num_states = 1;
   size_type num_empty = 0;
   size_type empty_index = 0;
   size_type N_index;
@@ -1083,7 +1083,7 @@ void BuchiAutomaton::Minimize() {
 
   dbg(OutputType::General, std::print("\n"));
 
-  size_type num_rounds = 0;
+  [[maybe_unused]] size_type num_rounds = 0;
   size_type num_states = 0;
 
   width = std::max(width, 2);
