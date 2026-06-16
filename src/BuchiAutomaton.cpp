@@ -115,7 +115,7 @@ void BuchiAutomaton::Print() const {
 
     std::print("# INITIAL\n");
     if (verbose > std::to_underlying(OutputType::General)) {
-      for (auto i : omega::set_bits(initial_states)) {
+      for (auto i : dynamic_bitset_iterator(initial_states)) {
         std::print("  {:{}}", i, width);
       }
 
@@ -130,7 +130,7 @@ void BuchiAutomaton::Print() const {
 
     std::print("# FINAL\n");
     if (verbose > std::to_underlying(OutputType::General)) {
-      for (auto i : omega::set_bits(final_states)) {
+      for (auto i : dynamic_bitset_iterator(final_states)) {
         std::print("  {:{}}", i, width);
       }
 
@@ -240,7 +240,7 @@ void BuchiAutomaton::Reachable() {
 
   auto index = boost::get(boost::vertex_index, graph);
   // only search the connected components of initial states
-  for (auto i : omega::set_bits(initial_states)) {
+  for (auto i : dynamic_bitset_iterator(initial_states)) {
     auto v = boost::vertex(i, graph);
 
     color_map_t color_map(num_vertices, index);
@@ -252,7 +252,7 @@ void BuchiAutomaton::Reachable() {
   reachable.flip();
 
   if (reachable.any()) {
-    for (auto i : omega::set_bits(reachable)) {
+    for (auto i : dynamic_bitset_iterator(reachable)) {
       auto v = boost::vertex(i, graph);
       boost::clear_vertex(v, graph);
     }
@@ -492,7 +492,7 @@ bool BuchiAutomaton::Empty() {
   });
 
   bool empty = true;
-  for (auto i : omega::set_bits(initial_states)) {
+  for (auto i : dynamic_bitset_iterator(initial_states)) {
     auto u = boost::vertex(i, graph);
 
     // Predecessor Map
@@ -507,7 +507,7 @@ bool BuchiAutomaton::Empty() {
     boost::breadth_first_search(
         graph, u, boost::visitor(visitor).color_map(color_map));
 
-    for (auto j : omega::set_bits(final_states)) {
+    for (auto j : dynamic_bitset_iterator(final_states)) {
       auto v = boost::vertex(j, graph);
 
       if (component[j] == TRIVIAL) {
@@ -881,7 +881,7 @@ boost::dynamic_bitset<> Update(
 
   // for each state in Q, find all reachable states under the given
   // symbol and add them to the new label set
-  for (auto i : omega::set_bits(Q)) {
+  for (auto i : dynamic_bitset_iterator(Q)) {
     // T.equal_range returns a pair of iterators that give all values that
     // state i maps to under the given symbol
     // if itr == end, then there is no transition
@@ -1207,11 +1207,11 @@ void BuchiAutomaton::Minimize() {
   boost::dynamic_bitset<> F(num_states);
 
   // I.set(names[initial_states.find_first()]);
-  for (auto i : omega::set_bits(initial_states)) {
+  for (auto i : dynamic_bitset_iterator(initial_states)) {
     I.set(names[i]);
   }
   // F.set();
-  for (auto i : omega::set_bits(final_states)) {
+  for (auto i : dynamic_bitset_iterator(final_states)) {
     F.set(names[i]);
   }
 
@@ -1253,8 +1253,8 @@ std::unique_ptr<BuchiAutomaton> Intersection(const BuchiAutomaton& A, const Buch
 
   dbg(OutputType::Debug, std::print("# N(A) = {}, N(B) = {}, S = {}\n# Initial States\n", A.num_vertices, B.num_vertices, C->num_alphabet));
 
-  for (auto i : omega::set_bits(A.initial_states)) {
-    for (auto j : omega::set_bits(B.initial_states)) {
+  for (auto i : dynamic_bitset_iterator(A.initial_states)) {
+    for (auto j : dynamic_bitset_iterator(B.initial_states)) {
       // Add a new vertex to the graph representing the state (i, j, NodeType::Initial).
       auto u = boost::add_vertex(C->graph);
 

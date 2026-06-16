@@ -257,7 +257,7 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   auto EQ = false;
   auto NE = true;
 
-  for (auto i : omega::set_bits(M.initial_states)) {
+  for (auto i : dynamic_bitset_iterator(M.initial_states)) {
     // Add a vertex to the graph representing the state (i, EQ).
     auto u = boost::add_vertex(P->graph);
 
@@ -1110,7 +1110,7 @@ std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
   auto index = boost::get(boost::vertex_index, M.graph);
   auto label = boost::get(boost::edge_name, M.graph);
 
-  for (auto i : omega::set_bits(M.initial_states)) {
+  for (auto i : dynamic_bitset_iterator(M.initial_states)) {
     auto u = boost::vertex(i, M.graph);
 
     for (auto [e_itr, e_end] = boost::out_edges(u, M.graph);
@@ -1130,7 +1130,7 @@ std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
   boost::dynamic_bitset<> S = ~M.final_states;
   B->final_states.set();
 
-  for (auto i : omega::set_bits(S)) {
+  for (auto i : dynamic_bitset_iterator(S)) {
     B->final_states.reset(compose_3(i, 0, 0));
     B->final_states.reset(compose_3(i, 0, 1));
     B->final_states.reset(compose_3(i, 1, 0));

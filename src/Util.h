@@ -117,12 +117,12 @@ inline int binary_digits(std::size_t n) {
 }
 
 // Range over the set-bit indices of a dynamic_bitset, for use in a
-// range-based for loop: `for (auto i : set_bits(bs)) { ... }`.
-class set_bits {
+// range-based for loop: `for (auto i : dynamic_bitset_iterator(bs)) { ... }`.
+class dynamic_bitset_iterator {
 public:
   using size_type = boost::dynamic_bitset<>::size_type;
 
-  explicit set_bits(const boost::dynamic_bitset<>& bs) : bs_(bs) {}
+  explicit dynamic_bitset_iterator(const boost::dynamic_bitset<>& bs) : bs_(bs) {}
 
   class iterator {
   public:
