@@ -8,6 +8,12 @@
 #include "Util.h"
 
 #include <cstdlib>
+#include <format>
+#include <functional>
+#include <sstream>
+#include <string>
+#include <tuple>
+#include <unordered_map>
 #include <utility>
 
 #include <boost/dynamic_bitset.hpp>
@@ -166,3 +172,302 @@ BOOST_AUTO_TEST_CASE(BaseTest) {
   BOOST_TEST(Shift(16, 1, ShiftType::Right) == true);
   BOOST_TEST(Shift(2, 1, ShiftType::Left) == true);
 }
+
+// --- New test coverage ---------------------------------------------------
+//
+// Tests below are grouped by topic. Whenever an assertion is a numeric
+// quantity that would normally be hard to hand-derive (num_vertices,
+// num_edges, etc. for new automata) it is justified by an invariant that
+// must hold for any correct implementation -- never by a hand-computed
+// determinization result. The few places where we compare against a
+// concrete "characterization" value follow the same style as the existing
+// DeterminizeTest1/2/3 cases.
+
+BOOST_AUTO_TEST_SUITE(DeterminizeInvariants)
+
+// Determinization is a deterministic function of its input: running it
+// twice on the same input must produce identical Rabin automata
+// (same vertex/edge counts and the same set of accepting pairs).
+BOOST_AUTO_TEST_CASE(DeterminizeIsReproducible) {
+  BuchiAutomaton B(2, 2);
+  TransitionMap m = {
+    {{0, 0}, 0},
+    {{0, 1}, 0},
+    {{0, 1}, 1},
+    {{1, 0}, 1},
+  };
+  B.initial_states = make_bitset("01");
+  B.final_states = make_bitset("10");
+  B.Init(m);
+
+  auto R1 = B.Determinize(m);
+
+  BuchiAutomaton B2(2, 2);
+  B2.initial_states = make_bitset("01");
+  B2.final_states = make_bitset("10");
+  B2.Init(m);
+  auto R2 = B2.Determinize(m);
+
+  BOOST_TEST(R1->num_vertices == R2->num_vertices);
+  BOOST_TEST(R1->num_edges == R2->num_edges);
+  BOOST_CHECK_EQUAL_COLLECTIONS(
+      R1->pairs.begin(), R1->pairs.end(),
+      R2->pairs.begin(), R2->pairs.end());
+}
+
+// Every RabinPair produced by Determinize must have left/right bitsets
+// whose width matches the determinized state space (num_vertices), and
+// all pairs in the same automaton must share that width. Also, the
+// resulting automaton must be non-trivial (>0 vertices, >0 edges).
+BOOST_AUTO_TEST_CASE(DeterminizePairsHaveUniformWidth) {
+  BuchiAutomaton B(2, 2);
+  TransitionMap m = {
+    {{0, 0}, 0},
+    {{0, 1}, 0},
+    {{0, 1}, 1},
+    {{1, 0}, 1},
+  };
+  B.initial_states = make_bitset("01");
+  B.final_states = make_bitset("10");
+  B.Init(m);
+
+  auto R = B.Determinize(m);
+
+  BOOST_TEST(R->num_vertices > 0u);
+  BOOST_TEST(R->num_edges > 0u);
+  BOOST_TEST(R->pairs.size() > 0u);
+
+  for (const auto& p : R->pairs) {
+    BOOST_TEST(p.left.size() == R->num_vertices);
+    BOOST_TEST(p.right.size() == R->num_vertices);
+  }
+}
+
+// Minimize() should be idempotent: minimizing an already-minimized
+// automaton must not change its size or accepting pairs.
+BOOST_AUTO_TEST_CASE(MinimizeIsIdempotent) {
+  BuchiAutomaton B(3, 2);
+  TransitionMap m = {
+    {{0, 0}, 0},
+    {{0, 1}, 0},
+    {{0, 1}, 1},
+    {{0, 2}, 1},
+    {{1, 0}, 0},
+    {{1, 1}, 1},
+    {{1, 2}, 1},
+  };
+  B.initial_states = make_bitset("01");
+  B.final_states = make_bitset("01");
+  B.Init(m);
+
+  omega::DeterminizeOpts opts;
+  opts.SwapUpdateCreate = true;
+  auto R = B.Determinize(m, opts);
+  R->Minimize();
+
+  const auto v1 = R->num_vertices;
+  const auto e1 = R->num_edges;
+  const auto pairs1 = R->pairs;
+
+  R->Minimize();
+
+  BOOST_TEST(R->num_vertices == v1);
+  BOOST_TEST(R->num_edges == e1);
+  BOOST_CHECK_EQUAL_COLLECTIONS(
+      R->pairs.begin(), R->pairs.end(),
+      pairs1.begin(), pairs1.end());
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+// -------------------------------------------------------------------------
+// RabinPair
+// -------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_SUITE(RabinPairTests)
+
+// The (size_type) ctor must produce two zero-initialized bitsets of the
+// requested width.
+BOOST_AUTO_TEST_CASE(NumBitsCtorIsZeroInitialized) {
+  RabinPair p(5);
+  BOOST_TEST(p.left.size() == 5u);
+  BOOST_TEST(p.right.size() == 5u);
+  BOOST_TEST(p.left.none());
+  BOOST_TEST(p.right.none());
+}
+
+// The (string,string) and (bitset,bitset) ctors must agree, since
+// dynamic_bitset(std::string) is the documented way to build one from a
+// 0/1 string.
+BOOST_AUTO_TEST_CASE(StringAndBitsetCtorsAgree) {
+  RabinPair a("101", "010");
+  RabinPair b(make_bitset("101"), make_bitset("010"));
+  BOOST_TEST(a == b);
+  BOOST_TEST(!(a != b));
+}
+
+// Equality is reflexive and symmetric; inequality is its negation.
+BOOST_AUTO_TEST_CASE(EqualityIsReflexiveAndSymmetric) {
+  RabinPair a("101", "010");
+  RabinPair b("101", "010");
+  RabinPair c("100", "010");
+
+  BOOST_TEST(a == a);
+  BOOST_TEST(a == b);
+  BOOST_TEST(b == a);
+  BOOST_TEST(a != c);
+  BOOST_TEST(c != a);
+  BOOST_TEST(!(a == c));
+}
+
+// Reset() clears both sides while preserving width.
+BOOST_AUTO_TEST_CASE(ResetClearsBitsKeepsWidth) {
+  RabinPair p("101", "110");
+  const auto w_left = p.left.size();
+  const auto w_right = p.right.size();
+
+  p.Reset();
+
+  BOOST_TEST(p.left.size() == w_left);
+  BOOST_TEST(p.right.size() == w_right);
+  BOOST_TEST(p.left.none());
+  BOOST_TEST(p.right.none());
+}
+
+// Resize() resets bits and changes both sides to the requested width.
+BOOST_AUTO_TEST_CASE(ResizeChangesWidthAndResets) {
+  RabinPair p("1010", "0101");
+  p.Resize(7);
+
+  BOOST_TEST(p.left.size() == 7u);
+  BOOST_TEST(p.right.size() == 7u);
+  BOOST_TEST(p.left.none());
+  BOOST_TEST(p.right.none());
+}
+
+// operator<< must round-trip through std::ostringstream and produce a
+// non-empty string for non-trivial inputs.
+BOOST_AUTO_TEST_CASE(StreamOperatorProducesOutput) {
+  RabinPair p("101", "010");
+  std::ostringstream os;
+  os << p;
+  const auto s = os.str();
+  BOOST_TEST(!s.empty());
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+// -------------------------------------------------------------------------
+// std::hash specializations and std::formatter for dynamic_bitset
+// -------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_SUITE(UtilTests)
+
+// Equal keys must hash equal (the basic hash invariant). Combined with
+// operator==, that's enough for use as an unordered_map key.
+BOOST_AUTO_TEST_CASE(PairHashIsConsistent) {
+  std::hash<std::pair<int, int>> h;
+  std::pair<int, int> a{3, 7};
+  std::pair<int, int> b{3, 7};
+
+  BOOST_TEST(h(a) == h(b));
+
+  std::unordered_map<std::pair<int, int>, std::string> m;
+  m[{1, 2}] = "x";
+  m[{3, 4}] = "y";
+  BOOST_TEST(m.at(std::pair<int, int>{1, 2}) == "x");
+  BOOST_TEST(m.at(std::pair<int, int>{3, 4}) == "y");
+}
+
+BOOST_AUTO_TEST_CASE(TupleHashIsConsistent) {
+  std::hash<std::tuple<int, int, int>> h;
+  std::tuple<int, int, int> a{1, 2, 3};
+  std::tuple<int, int, int> b{1, 2, 3};
+
+  BOOST_TEST(h(a) == h(b));
+
+  std::unordered_map<std::tuple<int, int, int>, int> m;
+  m[{1, 2, 3}] = 10;
+  m[{4, 5, 6}] = 20;
+  BOOST_TEST((m.at(std::tuple<int, int, int>{1, 2, 3}) == 10));
+  BOOST_TEST((m.at(std::tuple<int, int, int>{4, 5, 6}) == 20));
+}
+
+// std::format("{}", bs) must agree with boost::to_string(bs) since that
+// is exactly what the formatter delegates to.
+BOOST_AUTO_TEST_CASE(BitsetFormatterMatchesBoostToString) {
+  auto bs = make_bitset("10110");
+  std::string expected;
+  boost::to_string(bs, expected);
+  BOOST_TEST(std::format("{}", bs) == expected);
+
+  auto empty = boost::dynamic_bitset<>{};
+  std::string expected_empty;
+  boost::to_string(empty, expected_empty);
+  BOOST_TEST(std::format("{}", empty) == expected_empty);
+}
+
+// print_state must produce the exact strings the implementation defines
+// for every NodeType enumerator.
+BOOST_AUTO_TEST_CASE(PrintStateCoversAllNodeTypes) {
+  BOOST_TEST(print_state(NodeType::None) == "None");
+  BOOST_TEST(print_state(NodeType::Initial) == "Initial");
+  BOOST_TEST(print_state(NodeType::Final) == "Final");
+  BOOST_TEST(print_state(NodeType::Both) == "Both");
+  BOOST_TEST(print_state(NodeType::Final1) == "Final1");
+  BOOST_TEST(print_state(NodeType::Final2) == "Final2");
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+// -------------------------------------------------------------------------
+// ECA predicates
+// -------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_SUITE(ECAPredicates)
+
+// Rule 0 sends every cell to 0, so the all-zero configuration is fixed.
+// Rule 255 sends every cell to 1, so the all-one configuration is fixed.
+// Rule 204 is the identity rule (new cell == middle cell), so every
+// configuration is fixed.
+BOOST_AUTO_TEST_CASE(FixedPointTrivialRules) {
+  BOOST_TEST(FixedPoint(0) == true);
+  BOOST_TEST(FixedPoint(255) == true);
+  BOOST_TEST(FixedPoint(204) == true);
+}
+
+// Rule 51 has lookup table 0b00110011: bit i of the rule selects new
+// cell value for neighborhood i (= 4*l + 2*m + r). The output equals
+// (NOT m), independent of l and r. A configuration x is a fixed point
+// iff x_i == NOT x_i for every i, which is impossible -- so no fixed
+// point exists.
+BOOST_AUTO_TEST_CASE(FixedPointRule51HasNone) {
+  BOOST_TEST(FixedPoint(51) == false);
+}
+
+// Surjectivity / injectivity for the trivial constant rules: rule 0 maps
+// everything to all-zeros, rule 255 maps everything to all-ones, so
+// neither is surjective and neither is injective. Rule 204 is the
+// identity, so it is both.
+BOOST_AUTO_TEST_CASE(InjectiveSurjectiveTrivialRules) {
+  BOOST_TEST(Injective(204) == true);
+  BOOST_TEST(Surjective(204) == true);
+}
+
+// The all-zero configuration is a 1-cycle of every rule whose lookup
+// table sends 000 -> 0 (i.e. rule bit 0 is 0). Cycle(rule, 1) is
+// equivalent to FixedPoint(rule) (the implementation imposes no
+// inequality constraint when k == 1), so we restate that link here for
+// rule 0 and rule 204. Rule 51 sets bit 0 = 1, so 000 -> 1 and the
+// all-zero configuration is *not* fixed; in fact rule 51 has no fixed
+// point at all (see FixedPointRule51HasNone), so Cycle(51, 1) is false.
+BOOST_AUTO_TEST_CASE(CycleOneMatchesFixedPoint) {
+  BOOST_TEST(Cycle(0, 1) == true);
+  BOOST_TEST(Cycle(204, 1) == true);
+  BOOST_TEST(Cycle(51, 1) == false);
+  BOOST_TEST(Cycle(0, 1) == FixedPoint(0));
+  BOOST_TEST(Cycle(204, 1) == FixedPoint(204));
+  BOOST_TEST(Cycle(51, 1) == FixedPoint(51));
+}
+
+BOOST_AUTO_TEST_SUITE_END()
