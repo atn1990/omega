@@ -12,10 +12,6 @@ namespace omega {
 Automaton::Automaton(size_type num_alphabet, size_type num_vertices)
   : graph(num_vertices), num_alphabet(num_alphabet), num_vertices(num_vertices) {}
 
-void Automaton::Reserve(size_type num_vertices) {
-  graph.m_vertices.reserve(num_vertices);
-}
-
 void Automaton::Resize() {
   num_vertices = boost::num_vertices(graph);
   num_edges = boost::num_edges(graph);

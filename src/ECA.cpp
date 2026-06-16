@@ -235,7 +235,6 @@ void Equality(BuchiAutomaton& M, int_pair pair) {
 // and one where they have.
 std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   auto P = std::make_unique<BuchiAutomaton>(M.num_alphabet);
-  P->Reserve(2 * M.num_vertices);
 
   dbg(OutputType::Debug, std::print("# Inequality({}, {})\n", pair.first, pair.second));
   dbg(OutputType::Debug, std::print("# (N = {}, S = {})\n\n", M.num_vertices, M.num_alphabet));
