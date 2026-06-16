@@ -8,10 +8,27 @@
 #include <ostream>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include <boost/functional/hash.hpp>
 
 namespace omega {
+
+namespace {
+
+// Hashes a dynamic_bitset by combining its underlying blocks plus the logical
+// size, avoiding the per-bit std::string allocation that boost::to_string
+// would perform. The size is included because to_block_range only yields whole
+// blocks and would otherwise conflate bitsets that share block contents but
+// differ in logical length.
+void hash_bitset(size_t& seed, const boost::dynamic_bitset<>& bs) {
+  boost::hash_combine(seed, bs.size());
+  std::vector<boost::dynamic_bitset<>::block_type> blocks(bs.num_blocks());
+  boost::to_block_range(bs, blocks.begin());
+  boost::hash_range(seed, blocks.begin(), blocks.end());
+}
+
+} // namespace
 
 // SafraNode constructor
 // Assigns a node the first unallocated name in the tree.
@@ -359,9 +376,7 @@ size_t SafraNode::hash_value() const {
   boost::hash_combine(seed, name);
   boost::hash_combine(seed, static_cast<size_t>(marked));
 
-  std::string str;
-  boost::to_string(label, str);
-  boost::hash_combine(seed, str);
+  hash_bitset(seed, label);
 
   for (auto& child : children) {
     boost::hash_combine(seed, child->name);
@@ -373,9 +388,7 @@ size_t SafraNode::hash_value() const {
 size_t SafraTree::hash_value() const {
   size_t seed = num_nodes;
 
-  std::string str;
-  boost::to_string(names, str);
-  boost::hash_combine(seed, str);
+  hash_bitset(seed, names);
 
   if (root != nullptr) {
     boost::hash_combine(seed, root->hash_value());
