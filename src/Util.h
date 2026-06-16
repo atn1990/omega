@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <ostream>
 #include <print>
 #include <ranges>
@@ -90,10 +91,16 @@ using int_type = uint64_t;
 
 // The upper and lower (k-1) bits of k-bit numbers define the source and target of de Bruijn map, respectively.
 constexpr int_type source(int_type x) { return x >> 1; }
-constexpr int_type target(int_type x, unsigned k) { return x & ((static_cast<int_type>(1) << k) - 1); }
+constexpr int_type target(int_type x, unsigned k) {
+  return k >= std::numeric_limits<int_type>::digits
+             ? x
+             : x & ((static_cast<int_type>(1) << k) - 1);
+}
 
 // Return the i-th least significant bit of n.
-constexpr int_type get_bit(int_type n, unsigned i) { return (n >> i) & 0x1; }
+constexpr int_type get_bit(int_type n, unsigned i) {
+  return i >= std::numeric_limits<int_type>::digits ? int_type{0} : (n >> i) & 0x1;
+}
 
 // one-step transition map for ECA: the n-th bit of rule.
 constexpr int_type map_bit(int_type rule, unsigned n) { return get_bit(rule, n); }
