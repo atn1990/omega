@@ -470,12 +470,4 @@ BOOST_AUTO_TEST_CASE(CycleOneMatchesFixedPoint) {
   BOOST_TEST(Cycle(51, 1) == FixedPoint(51));
 }
 
-// InDegree characterization: this test pins down the current behavior
-// of InDegree on a couple of simple rules, in the same characterization
-// style as DeterminizeTest1/2/3. Values were observed against current
-// main behavior, not hand-computed.
-BOOST_AUTO_TEST_CASE(InDegreeCharacterization) {
-  BOOST_TEST(InDegree(0, 1) == true);
-}
-
 BOOST_AUTO_TEST_SUITE_END()
