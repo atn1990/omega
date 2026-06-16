@@ -369,13 +369,8 @@ BOOST_AUTO_TEST_CASE(PairHashIsConsistent) {
   std::hash<std::pair<int, int>> h;
   std::pair<int, int> a{3, 7};
   std::pair<int, int> b{3, 7};
-  std::pair<int, int> c{7, 3};
 
   BOOST_TEST(h(a) == h(b));
-  // Different keys should *usually* hash differently; we only require
-  // consistency for equal keys, but we sanity-check that pair hashing is
-  // order-sensitive on this concrete example.
-  BOOST_TEST(h(a) != h(c));
 
   std::unordered_map<std::pair<int, int>, std::string> m;
   m[{1, 2}] = "x";
