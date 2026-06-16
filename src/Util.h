@@ -151,7 +151,7 @@ public:
       return tmp;
     }
 
-    bool operator==(const iterator& other) const { return pos_ == other.pos_; }
+    bool operator==(const iterator& other) const { return bs_ == other.bs_ && pos_ == other.pos_; }
     bool operator!=(const iterator& other) const { return !(*this == other); }
 
   private:
