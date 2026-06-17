@@ -55,7 +55,7 @@ public:
 
   RabinAutomaton(size_type alphabet = 0, size_type vertices = 0);
 
-  void Init(const RabinTransitionMap& map);
+  void Init(const std::vector<int_type>& transitions);
 
   bool Universal();
   void Clean();
