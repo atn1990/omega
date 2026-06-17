@@ -162,7 +162,7 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
       type[u] = NodeType::None;
     } else {
       type[u] = NodeType::Final;
-      M->final_states.set(i);
+      M->final_states.set(i+1);
     }
   }
 
@@ -918,7 +918,7 @@ bool Nilpotent(int_type rule, int_type k) {
 // Equivalently:
 // \not\exists u, \exists x_1, ..., x_k, y:
 // [(x_1 -/> y) || ... || (x_k -/> y) || (x_1 == x_2) || ... || (x_{k-1} == x_k)
-//   || ((u -/> y) && (u != x_1) && ... && (u != x_k))]
+//   || ((u -> y) && (u != x_1) && ... && (u != x_k))]
 bool InDegree(int_type rule, int_type k) {
   BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
   BOOST_ASSERT_MSG(k > 0, "Parameter k must be at least 1");
@@ -935,11 +935,14 @@ bool InDegree(int_type rule, int_type k) {
   GlobalMapOpts opts;
   opts.negated = true;
 
-  dbg(OutputType::General, std::print("# u -/> y\n"));
-  auto M = GlobalMap(rule, k+2, {k+1, 0}, opts);
+  // The u term is (u -> y) && (u != x_1) && ... && (u != x_k), which is the
+  // negation of the implication ((u -> y) => (u == x_1) || ... || (u == x_k)).
+  // It uses the positive global map, not the negated one.
+  dbg(OutputType::General, std::print("# u -> y\n"));
+  auto M = GlobalMap(rule, k+2, {k+1, 0});
 
   for (auto i = 1UL; i <= k; i++) {
-    dbg(OutputType::General, std::print("# [u -/> y] && (x{} != u)\n", i));
+    dbg(OutputType::General, std::print("# [u -> y] && (x{} != u)\n", i));
     M = Inequality(*M, {i, k+1});
   }
 
@@ -947,7 +950,7 @@ bool InDegree(int_type rule, int_type k) {
     dbg(OutputType::General, std::print("# x{} -/> y\n", i));
     auto N = GlobalMap(rule, k+2, {i, 0}, opts);
 
-    dbg(OutputType::General, std::print("# [u -/> y] || (x{} -/> y)\n", i));
+    dbg(OutputType::General, std::print("# [u -> y] || (x{} -/> y)\n", i));
     M = DisjointUnion(*M, *N);
   }
 
@@ -955,12 +958,12 @@ bool InDegree(int_type rule, int_type k) {
     for (auto j = i+1; j <= k; j++) {
       dbg(OutputType::General, std::print("# x{} == x{}\n", i, j));
       auto N = Equality(k+2, {i, j});
-      dbg(OutputType::General, std::print("# [u -/> y] || [x -/> y] || (x{} == x{})\n", i, j));
+      dbg(OutputType::General, std::print("# [u -> y] || [x -/> y] || (x{} == x{})\n", i, j));
       M = DisjointUnion(*M, *N);
     }
   }
 
-  dbg(OutputType::General, std::print("# [u -/> y] || [x -/> y] || [x_i == x_j]\n"));
+  dbg(OutputType::General, std::print("# [u -> y] || [x -/> y] || [x_i == x_j]\n"));
 
   // Remove track k+1 (u)
   M->ProjectLabel();
