@@ -5,8 +5,10 @@
 #include "Util.h"
 
 #include <cstdio>
+#include <functional>
 #include <iostream>
 
+#include <boost/graph/filtered_graph.hpp>
 #include <boost/graph/strong_components.hpp>
 
 template <>
@@ -257,159 +259,124 @@ void RabinAutomaton::Clean() {
 }
 
 // An automaton is universal if the language of the complement is empty.
+//
+// The complement of a deterministic Rabin automaton (acceptance: some pair i
+// has Inf \cap R_i != {} and Inf \cap L_i == {}) is a Streett condition
+// (for every pair i, Inf \cap R_i == {} or Inf \cap L_i != {}). The Rabin
+// automaton is universal exactly when this Streett condition has no accepting
+// run, which is decided with the classic recursive emptiness test:
+//
+//   StreettNonEmpty(V):
+//     for each non-trivial SCC C of the subgraph induced by V:
+//       bad = union of R_i over pairs i with C \cap L_i == {}
+//       if bad == {}            -> witness found, return true
+//       if StreettNonEmpty(C \ bad) -> return true
+//     return false
+//
+// The computation is performed over the original vertex identifiers (using a
+// filtered view of the graph) so that the indices always line up with the
+// bitsets stored in the Rabin pairs.
 bool RabinAutomaton::Universal() {
   dbg(OutputType::General, std::print("# Universal()\n\n"));
 
-  const auto width = decimal_digits(num_vertices-1);
-  auto universal = false;
-  for (auto subset = 0UL; subset < std::exp2(pairs.size()); subset++) {
-    graph_t H(graph);
-    auto index = boost::get(boost::vertex_index, H);
+  // Build an adjacency representation keyed by the original vertex indices.
+  auto index = boost::get(boost::vertex_index, graph);
 
-    // subset \in {0 ... 2^P-1}
-    // Specifies a subset of the pairs to check the right condition of against the non-trivial strongly connected components of the graph after removing the left conditions of the pairs not in the subset
-    boost::dynamic_bitset<> pair_set(pairs.size(), subset);
-    boost::dynamic_bitset<> clear_set(num_vertices);
-
-    dbg(OutputType::General, std::print("Pair Set: {}\n\n", pair_set));
-
-    // If a vertex appears in any of the specified right conditions, then remove it from the graph.
-    const auto pending = ~pair_set;
-    for (auto i : dynamic_bitset_iterator(pending)) {
-      clear_set = clear_set | pairs[i].right;
+  // Predicate that restricts the graph to a given set of active vertices.
+  struct VertexPredicate {
+    const boost::dynamic_bitset<>* active = nullptr;
+    bool operator()(graph_t::vertex_descriptor v) const {
+      return (*active)[v];
     }
-    for (auto i : dynamic_bitset_iterator(clear_set)) {
-      boost::clear_vertex(boost::vertex(i, H), H);
+  };
+  struct EdgePredicate {
+    const graph_t* g = nullptr;
+    const boost::dynamic_bitset<>* active = nullptr;
+    bool operator()(graph_t::edge_descriptor e) const {
+      return (*active)[boost::source(e, *g)] && (*active)[boost::target(e, *g)];
     }
+  };
 
-    [[maybe_unused]] auto num_removed = 0UL;
-    bool done = false;
-    while (!done) {
-      done = true;
-
-      for (auto [itr, end] = boost::vertices(H); itr != end; ++itr) {
-        if (boost::out_degree(*itr, H) == 0) {
-          // Removes all in edges
-          // May create additional empty vertices
-          boost::clear_vertex(*itr, H);
-
-          // Invalidates iterators so they have to be recreated. Must call
-          // clear_vertex() before remove_vertex().
-          boost::remove_vertex(*itr, H);
-
-          num_removed++;
-          done = false;
-          break;
-        }
-      }
+  // Recursive Streett emptiness test on the set of active vertices.
+  std::function<bool(boost::dynamic_bitset<>)> non_empty =
+    [&](boost::dynamic_bitset<> active) -> bool {
+    if (active.none()) {
+      return false;
     }
 
-    dbg(OutputType::General, std::print("Clear Set: {}\n\n", clear_set));
-    dbg(OutputType::Debug, std::print("Vertices Cleared: {}\n\n", num_removed));
+    VertexPredicate vp{&active};
+    EdgePredicate ep{&graph, &active};
+    boost::filtered_graph<graph_t, EdgePredicate, VertexPredicate> fg(graph, ep, vp);
 
-    if (boost::num_vertices(H) == 0) {
-      universal = true;
-      break;
+    std::vector<int32_t> component(num_vertices, TRIVIAL);
+    auto component_map = boost::make_iterator_property_map(component.begin(), index);
+    auto num_scc = boost::strong_components(fg, component_map,
+        boost::vertex_index_map(index));
+
+    // Collect the vertices of each strongly connected component.
+    std::vector<boost::dynamic_bitset<>> comps(num_scc, boost::dynamic_bitset<>(num_vertices));
+    for (auto i : dynamic_bitset_iterator(active)) {
+      comps[component[i]].set(i);
     }
 
-    // Compute the strongly connected components of the resulting graph to see
-    // if a non-trivial strongly connected component intersects every specified
-    // left Rabin condition.
-    // If so, then the language of the complement automaton is not empty,
-    // therefore this automaton cannot be universal.
-    std::vector<int32_t> component(boost::num_vertices(H));
-    uint32_t scc = boost::strong_components(H, &component[0]);
-
-    std::vector<std::vector<graph_t::vertex_descriptor>> component_lists(scc);
-    boost::build_component_lists(H, scc, &component[0], component_lists);
-
-    for (auto& list : component_lists) {
-      // A component with a single vertex is trivial unless the vertex has a self-loop.
-      if (list.size() == 1) {
-        auto& u = list[0];
-
-        // Check for self-loop.
-        auto [e, loop] = boost::edge(u, u, H);
-
-        // Self-loops are non-trivial strongly connected components.
+    for (auto& C : comps) {
+      // A single-vertex component is non-trivial only if it has a self-loop.
+      if (C.count() == 1) {
+        auto v = C.find_first();
+        auto [e, loop] = boost::edge(boost::vertex(v, graph), boost::vertex(v, graph), graph);
         if (!loop) {
-          component[index[u]] = TRIVIAL;
+          continue;
         }
+      }
+
+      // Pairs whose left condition is disjoint from the component cannot be
+      // satisfied here, so their right-condition states must be avoided.
+      boost::dynamic_bitset<> bad(num_vertices);
+      for (const auto& pair : pairs) {
+        if (!C.intersects(pair.left)) {
+          bad |= (pair.right & C);
+        }
+      }
+
+      // No states need to be removed: the whole component is a witness for a
+      // non-empty complement language.
+      if (bad.none()) {
+        return true;
+      }
+
+      if (non_empty(C & ~bad)) {
+        return true;
       }
     }
 
-    dbg(OutputType::General, {
-      std::print("Non-Trivial Components\n");
-      for (auto& list : component_lists) {
-        for (auto& u : list) {
-          auto idx_u = index[u];
-          if (component[idx_u] == TRIVIAL) {
-            break;
-          }
+    return false;
+  };
 
-          std::print("component({:{}})  =  {:{}}\n", idx_u, width, component[idx_u], width);
+  // Restrict the search to the part of the automaton reachable from the
+  // initial state (vertex 0).
+  boost::dynamic_bitset<> reachable(num_vertices);
+  if (num_vertices > 0) {
+    std::vector<graph_t::vertex_descriptor> stack = {boost::vertex(0, graph)};
+    reachable.set(0);
+    while (!stack.empty()) {
+      auto u = stack.back();
+      stack.pop_back();
+      for (auto [itr, end] = boost::out_edges(u, graph); itr != end; ++itr) {
+        auto v = boost::target(*itr, graph);
+        if (!reachable[index[v]]) {
+          reachable.set(index[v]);
+          stack.push_back(v);
         }
       }
-
-      std::print("\n");
-    });
-
-    universal = true;
-
-    // Find any non-trivial component that intersects all specified left Rabin conditions
-    for (auto& list : component_lists) {
-      auto comp = component[index[list[0]]];
-      if (comp == TRIVIAL) {
-        continue;
-      }
-
-      // If no sets are specified, then any non-trivial component is fine
-      if (pair_set.none()) {
-        universal = false;
-      }
-
-      // Check each rabin pair specified in the pair_set and find a common vertex in the component
-      for (auto i : dynamic_bitset_iterator(pair_set)) {
-        universal = true;
-
-        for (auto& u : list) {
-          auto idx_u = index[u];
-
-          if (pairs[i].left.test(idx_u)) {
-            dbg(OutputType::General, {
-              std::print("component({:{}})  =  {:{}}\n", idx_u, width, comp, width);
-              std::print("{}\n", pairs[i].left);
-            });
-
-            universal = false;
-            break;
-          }
-        }
-
-        // The left condition does not intersect the current component
-        if (universal) {
-          break;
-        }
-      }
-
-      // This component intersects every specified left Rabin set
-      if (!universal) {
-        dbg(OutputType::General, std::print("Component {} intersects pair set {}\n", comp, pair_set));
-
-        break;
-      }
-    }
-
-    if (!universal) {
-      dbg(OutputType::General, std::print("The language of the complement automaton is not empty\n\n"));
-      break;
-    } else {
-      dbg(OutputType::General, std::print("No component intersects every left Rabin set\n\n"));
     }
   }
 
+  auto universal = !non_empty(reachable);
+
   if (universal) {
     dbg(OutputType::General, std::print("The language of the complement automaton is empty\n"));
+  } else {
+    dbg(OutputType::General, std::print("The language of the complement automaton is not empty\n"));
   }
 
   return universal;

@@ -429,6 +429,51 @@ BOOST_AUTO_TEST_CASE(CycleOneMatchesFixedPoint) {
   }
 }
 
+// InDegree(rule, k) is true iff some configuration y has in-degree exactly k,
+// i.e. it has exactly k distinct preimages under one application of the global
+// map (and no others)
+//
+// For one-way infinite ECAs (left boundary x_{-1} = 0) the rules fall into a
+// few classes:
+//   - Constant rules 0 and 255 collapse every configuration onto a single
+//     image, so the only configuration in the image has infinite in-degree and
+//     no configuration has a finite in-degree -- neither k = 1 nor k = 2 holds
+//   - Boundary-invertible (bijective) rules have in-degree exactly 1
+//     everywhere, so InDegree(rule, 1) is true and InDegree(rule, 2) is false:
+//       * 204 is the identity (output == centre cell)
+//       * 51 is its complement (output == NOT centre cell)
+//       * 240 outputs the left neighbour and 195 its complement
+//       * 60 outputs left XOR centre
+//   - Two-to-one rules have in-degree exactly 2 everywhere, so
+//     InDegree(rule, 1) is false and InDegree(rule, 2) is true:
+//       * 170 outputs the right neighbour (the right-most cell is free)
+//       * 90 outputs left XOR right, 150 outputs left XOR centre XOR right
+//       * 105 is the complement of 150, and 154 is also two-to-one
+BOOST_AUTO_TEST_CASE(InDegreeOneAndTwo) {
+  // rule -> {expected InDegree(rule, 1), expected InDegree(rule, 2)}
+  std::map<int_type, std::pair<bool, bool>> expected = {
+    {0,   {false, false}},
+    {255, {false, false}},
+    {204, {true,  false}},
+    {51,  {true,  false}},
+    {60,  {true,  false}},
+    {195, {true,  false}},
+    {240, {true,  false}},
+    {170, {false, true}},
+    {150, {false, true}},
+    {90,  {false, true}},
+    {105, {false, true}},
+    {154, {false, true}},
+  };
+
+  for (auto [rule, result] : expected) {
+    BOOST_TEST(InDegree(rule, 1) == result.first,
+        "InDegree(" << rule << ", 1)");
+    BOOST_TEST(InDegree(rule, 2) == result.second,
+        "InDegree(" << rule << ", 2)");
+  }
+}
+
 BOOST_AUTO_TEST_CASE(ECATest1, * boost::unit_test::disabled()) {
   Run(110, 1, {});
 }
