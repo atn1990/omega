@@ -31,7 +31,7 @@ RabinAutomaton::RabinAutomaton(size_type alphabet, size_type vertices)
 // function represented as a dense, row-major table indexed by
 // `vertex * num_alphabet + symbol`.
 void RabinAutomaton::Init(const std::vector<int_type>& transitions) {
-  BOOST_ASSERT(transitions.size() >= num_vertices * num_alphabet);
+  BOOST_ASSERT(transitions.size() == num_vertices * num_alphabet);
 
   const auto vertex_width = decimal_digits(num_vertices-1);
   const auto symbol_width = decimal_digits(num_alphabet-1);
