@@ -258,7 +258,7 @@ void RabinAutomaton::Clean() {
 
 // An automaton is universal if the language of the complement is empty.
 bool RabinAutomaton::Universal() {
-  dbg(OutputType::Quiet, std::print("# Universal()\n\n"));
+  dbg(OutputType::General, std::print("# Universal()\n\n"));
 
   const auto width = decimal_digits(num_vertices-1);
   auto universal = false;
@@ -267,7 +267,7 @@ bool RabinAutomaton::Universal() {
     auto index = boost::get(boost::vertex_index, H);
 
     // subset \in {0 ... 2^P-1}
-    // Specifies a subset of the pairs.
+    // Specifies a subset of the pairs to check the right condition of against the non-trivial strongly connected components of the graph after removing the left conditions of the pairs not in the subset
     boost::dynamic_bitset<> pair_set(pairs.size(), subset);
     boost::dynamic_bitset<> clear_set(num_vertices);
 

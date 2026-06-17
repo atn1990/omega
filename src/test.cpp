@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <format>
 #include <functional>
+#include <map>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -25,7 +26,6 @@ boost::dynamic_bitset<> make_bitset(std::string s) {
 }
 
 extern int verbose;
-// extern size_t num_threads;
 
 struct GlobalFixture {
   void setup() {
@@ -36,21 +36,13 @@ struct GlobalFixture {
     } else {
       verbose = std::to_underlying(omega::OutputType::General);
     }
-    // num_threads = 1;
   }
   void teardown() {}
 };
 
-// struct MultiThreaded {
-//   void setup() {
-//     num_threads = 1;
-//   }
-//   void teardown() {
-//     num_threads = 1;
-//   }
-// };
-
 BOOST_TEST_GLOBAL_FIXTURE(GlobalFixture);
+
+BOOST_AUTO_TEST_SUITE(DeterminizeTests)
 
 BOOST_AUTO_TEST_CASE(DeterminizeTest1) {
   BuchiAutomaton B(2, 2);
@@ -72,7 +64,7 @@ BOOST_AUTO_TEST_CASE(DeterminizeTest1) {
   auto R = B.Determinize(m);
 
   BOOST_CHECK_EQUAL(R->num_vertices, 2);
-  BOOST_TEST(R->num_edges == 4);
+  BOOST_CHECK_EQUAL(R->num_edges, 4);
 
   auto col = { RabinPair("01", "10") };
   BOOST_CHECK_EQUAL_COLLECTIONS(R->pairs.begin(), R->pairs.end(), col.begin(), col.end());
@@ -97,8 +89,8 @@ BOOST_AUTO_TEST_CASE(DeterminizeTest2) {
 
   auto R = B.Determinize(m);
 
-  BOOST_TEST(R->num_vertices == 3);
-  BOOST_TEST(R->num_edges == 6);
+  BOOST_CHECK_EQUAL(R->num_vertices, 3);
+  BOOST_CHECK_EQUAL(R->num_edges, 6);
 
   auto col = { RabinPair("101", "010"), RabinPair("011", "100") };
   BOOST_CHECK_EQUAL_COLLECTIONS(R->pairs.begin(), R->pairs.end(), col.begin(), col.end());
@@ -107,6 +99,7 @@ BOOST_AUTO_TEST_CASE(DeterminizeTest2) {
 BOOST_AUTO_TEST_CASE(DeterminizeTest3) {
   BuchiAutomaton B(3, 2);
 
+  // Accepts strings where every occurrence of the symbol 2 is followed, later in the word, by at least one 0
   TransitionMap m = {
     {{0, 0}, 0},
     {{0, 1}, 0},
@@ -128,50 +121,14 @@ BOOST_AUTO_TEST_CASE(DeterminizeTest3) {
   auto R = B.Determinize(m, opts);
   R->Minimize();
 
-  BOOST_TEST(R->num_vertices == 4);
-  BOOST_TEST(R->num_edges == 12);
+  BOOST_CHECK_EQUAL(R->num_vertices, 4);
+  BOOST_CHECK_EQUAL(R->num_edges, 12);
 
   auto col = { RabinPair("0000", "0011") };
   BOOST_CHECK_EQUAL_COLLECTIONS(R->pairs.begin(), R->pairs.end(), col.begin(), col.end());
 }
 
-BOOST_AUTO_TEST_CASE(ECATest1, * boost::unit_test::disabled()) {
-  Run(110, 1, {});
-}
-
-// BOOST_AUTO_TEST_CASE(InjectiveTest) {
-//   BOOST_TEST(Injective(110) == false);
-// }
-
-// BOOST_AUTO_TEST_CASE(SurjectiveTest) {
-//   BOOST_TEST(Surjective(110) == false);
-// }
-
-BOOST_AUTO_TEST_CASE(BaseTest) {
-  BOOST_TEST(Injective(0) == false);
-  BOOST_TEST(Injective(255) == false);
-  BOOST_TEST(Injective(110) == false);
-  BOOST_TEST(Surjective(0) == false);
-  BOOST_TEST(Surjective(255) == false);
-  BOOST_TEST(Surjective(110) == false);
-  BOOST_TEST(Cycle(0, 1) == true);
-  BOOST_TEST(Cycle(255, 1) == true);
-  BOOST_TEST(Cycle(110, 1) == true);
-  BOOST_TEST(Cycle(0, 2) == false);
-  BOOST_TEST(Cycle(255, 2) == false);
-  BOOST_TEST(Cycle(110, 2) == true);
-  BOOST_TEST(Cycle(110, 3) == true);
-  BOOST_TEST(Cycle(110, 5) == true);
-  BOOST_TEST(Cycle(110, 7) == true);
-  BOOST_TEST(Nilpotent(0, 1) == true);
-  BOOST_TEST(Nilpotent(255, 1) == true);
-  BOOST_TEST(Nilpotent(204, 1) == true);
-  BOOST_TEST(Nilpotent(110, 2) == false);
-  BOOST_TEST(Shift(0, 1, ShiftType::Right) == false);
-  BOOST_TEST(Shift(255, 1, ShiftType::Right) == false);
-  BOOST_TEST(Shift(16, 1, ShiftType::Right) == true);
-  BOOST_TEST(Shift(2, 1, ShiftType::Left) == true);
-}
+BOOST_AUTO_TEST_SUITE_END()
 
 // --- New test coverage ---------------------------------------------------
 //
@@ -375,8 +332,8 @@ BOOST_AUTO_TEST_CASE(PairHashIsConsistent) {
   std::unordered_map<std::pair<int, int>, std::string> m;
   m[{1, 2}] = "x";
   m[{3, 4}] = "y";
-  BOOST_TEST(m.at(std::pair<int, int>{1, 2}) == "x");
-  BOOST_TEST(m.at(std::pair<int, int>{3, 4}) == "y");
+  BOOST_TEST(m.at({1, 2}) == "x");
+  BOOST_TEST(m.at({3, 4}) == "y");
 }
 
 BOOST_AUTO_TEST_CASE(TupleHashIsConsistent) {
@@ -389,8 +346,8 @@ BOOST_AUTO_TEST_CASE(TupleHashIsConsistent) {
   std::unordered_map<std::tuple<int, int, int>, int> m;
   m[{1, 2, 3}] = 10;
   m[{4, 5, 6}] = 20;
-  BOOST_TEST((m.at(std::tuple<int, int, int>{1, 2, 3}) == 10));
-  BOOST_TEST((m.at(std::tuple<int, int, int>{4, 5, 6}) == 20));
+  BOOST_TEST((m.at({1, 2, 3}) == 10));
+  BOOST_TEST((m.at({4, 5, 6}) == 20));
 }
 
 // std::format("{}", bs) must agree with boost::to_string(bs) since that
@@ -424,50 +381,77 @@ BOOST_AUTO_TEST_SUITE_END()
 // ECA predicates
 // -------------------------------------------------------------------------
 
-BOOST_AUTO_TEST_SUITE(ECAPredicates)
-
-// Rule 0 sends every cell to 0, so the all-zero configuration is fixed.
-// Rule 255 sends every cell to 1, so the all-one configuration is fixed.
-// Rule 204 is the identity rule (new cell == middle cell), so every
-// configuration is fixed.
-BOOST_AUTO_TEST_CASE(FixedPointTrivialRules) {
-  BOOST_TEST(FixedPoint(0) == true);
-  BOOST_TEST(FixedPoint(255) == true);
-  BOOST_TEST(FixedPoint(204) == true);
-}
-
-// Rule 51 has lookup table 0b00110011: bit i of the rule selects new
-// cell value for neighborhood i (= 4*l + 2*m + r). The output equals
-// (NOT m), independent of l and r. A configuration x is a fixed point
-// iff x_i == NOT x_i for every i, which is impossible -- so no fixed
-// point exists.
-BOOST_AUTO_TEST_CASE(FixedPointRule51HasNone) {
-  BOOST_TEST(FixedPoint(51) == false);
-}
+BOOST_AUTO_TEST_SUITE(ECA_Predicates)
 
 // Surjectivity / injectivity for the trivial constant rules: rule 0 maps
 // everything to all-zeros, rule 255 maps everything to all-ones, so
-// neither is surjective and neither is injective. Rule 204 is the
-// identity, so it is both.
+// neither is injective nor surjective
+// Rule 204 is the identity, so it is both (bijective)
+// Rule 51 is the negation of the identity, so it is also both
 BOOST_AUTO_TEST_CASE(InjectiveSurjectiveTrivialRules) {
-  BOOST_TEST(Injective(204) == true);
-  BOOST_TEST(Surjective(204) == true);
+  for (auto rule : {0, 255}) {
+    BOOST_TEST(Injective(rule) == false);
+    BOOST_TEST(Surjective(rule) == false);
+  }
+
+  for (auto rule : {51, 204}) {
+    BOOST_TEST(Injective(rule) == true);
+    BOOST_TEST(Surjective(rule) == true);
+  }
 }
 
-// The all-zero configuration is a 1-cycle of every rule whose lookup
-// table sends 000 -> 0 (i.e. rule bit 0 is 0). Cycle(rule, 1) is
-// equivalent to FixedPoint(rule) (the implementation imposes no
-// inequality constraint when k == 1), so we restate that link here for
-// rule 0 and rule 204. Rule 51 sets bit 0 = 1, so 000 -> 1 and the
-// all-zero configuration is *not* fixed; in fact rule 51 has no fixed
-// point at all (see FixedPointRule51HasNone), so Cycle(51, 1) is false.
+// The all-zero configuration is a 1-cycle of every rule whose lookup table
+// sends 000 -> 0 (i.e. rule bit 0 is 0). Cycle(rule, 1) is equivalent to
+// FixedPoint(rule) (the implementation imposes no inequality constraint when
+// k == 1), so we restate that link here
+// Rule 51 sets bit 0 = 1, so 000 -> 1 and the all-zero configuration is *not*
+// fixed; in fact rule 51 has no fixed point at all, so Cycle(51, 1) is false
+// Rule 0 sends every cell to 0, so the all-zero configuration is fixed
+// Rule 255 sends every cell to 1, so the all-one configuration is fixed
+// Rule 204 is the identity rule (new cell == middle cell), so every
+// configuration is fixed
+// Rule 51 has lookup table 0b00110011: bit i of the rule selects new cell
+// value for neighborhood i (= 4*l + 2*m + r)
+// The output equals (NOT m), independent of l and r
+// A configuration x is a fixed point iff x_i == NOT x_i for every i, which is
+// impossible -- therefore no fixed point exists
 BOOST_AUTO_TEST_CASE(CycleOneMatchesFixedPoint) {
-  BOOST_TEST(Cycle(0, 1) == true);
-  BOOST_TEST(Cycle(204, 1) == true);
-  BOOST_TEST(Cycle(51, 1) == false);
-  BOOST_TEST(Cycle(0, 1) == FixedPoint(0));
-  BOOST_TEST(Cycle(204, 1) == FixedPoint(204));
-  BOOST_TEST(Cycle(51, 1) == FixedPoint(51));
+  std::map<int_type, bool> expected = {
+    {0, true},
+    {51, false},
+    {204, true},
+    {255, true},
+  };
+
+  for (auto [rule, result] : expected) {
+    BOOST_TEST(Cycle(rule, 1) == result);
+    BOOST_CHECK_EQUAL(Cycle(rule, 1), FixedPoint(rule));
+  }
 }
+
+BOOST_AUTO_TEST_CASE(ECATest1, * boost::unit_test::disabled()) {
+  Run(110, 1, {});
+}
+
+BOOST_AUTO_TEST_CASE(BaseTest) {
+  BOOST_TEST(Injective(110) == false);
+  BOOST_TEST(Surjective(110) == false);
+  BOOST_TEST(Cycle(110, 1) == true);
+  BOOST_TEST(Cycle(0, 2) == false);
+  BOOST_TEST(Cycle(255, 2) == false);
+  BOOST_TEST(Cycle(110, 2) == true);
+  BOOST_TEST(Cycle(110, 3) == true);
+  BOOST_TEST(Cycle(110, 5) == true);
+  BOOST_TEST(Cycle(110, 7) == true);
+  BOOST_TEST(Nilpotent(0, 1) == true);
+  BOOST_TEST(Nilpotent(255, 1) == true);
+  BOOST_TEST(Nilpotent(204, 1) == true);
+  BOOST_TEST(Nilpotent(110, 2) == false);
+  BOOST_TEST(Shift(0, 1, ShiftType::Right) == false);
+  BOOST_TEST(Shift(255, 1, ShiftType::Right) == false);
+  BOOST_TEST(Shift(16, 1, ShiftType::Right) == true);
+  BOOST_TEST(Shift(2, 1, ShiftType::Left) == true);
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

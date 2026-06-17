@@ -416,11 +416,11 @@ void BuchiAutomaton::FindCycle(
 
 // Checks if the language recognized by the automaton is empty.
 bool BuchiAutomaton::Empty() {
-  dbg(OutputType::Quiet, std::print("# Empty()\n\n"));
+  dbg(OutputType::General, std::print("# Empty()\n\n"));
 
   if (final_states.none()) {
     // If there are no final states, the language is empty.
-    dbg(OutputType::Quiet, std::print("The language is empty\n"));
+    dbg(OutputType::General, std::print("The language is empty\n"));
     return true;
   }
 
