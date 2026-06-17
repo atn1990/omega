@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include <boost/dynamic_bitset.hpp>
 
@@ -55,7 +56,7 @@ public:
 
   RabinAutomaton(size_type alphabet = 0, size_type vertices = 0);
 
-  void Init(const RabinTransitionMap& map);
+  void Init(const std::vector<int_type>& transitions);
 
   bool Universal();
   void Clean();

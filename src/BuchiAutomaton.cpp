@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <queue>
 #include <source_location>
 #include <unordered_set>
@@ -641,7 +642,25 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   std::unordered_set<std::shared_ptr<SafraTree>, SafraTreeHash, SafraTreeEq> set;
   std::queue<std::shared_ptr<SafraTree>> queue;
 
-  RabinTransitionMap rabin_map;
+  // Dense, row-major transition table indexed by `state * num_alphabet +
+  // symbol`. Safra's construction yields a complete deterministic table, so a
+  // flat vector is far more compact and cache-friendly than a hash map keyed by
+  // (state, symbol) pairs. States are discovered in increasing index order, so
+  // the table is grown geometrically as new rows are needed. New slots are
+  // filled with a sentinel so debug builds can detect a duplicate write to the
+  // same (state, symbol), the invariant the old unordered_map::insert provided.
+  constexpr auto unset = std::numeric_limits<int_type>::max();
+  std::vector<int_type> transitions;
+  auto num_transitions = 0UL;
+  auto set_transition = [&](int_type state, int_type symbol, int_type target) {
+    const auto idx = state * num_alphabet + symbol;
+    if (idx >= transitions.size()) {
+      transitions.resize(std::max<size_t>(idx + 1, transitions.size() * 2), unset);
+    }
+    BOOST_ASSERT_MSG(transitions[idx] == unset, "duplicate Rabin transition");
+    transitions[idx] = target;
+    num_transitions++;
+  };
 
   auto empty_index = -1L;
 
@@ -736,7 +755,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
           // The empty tree is an absorbing state with a self-loop under all
           // transition symbols.
           for (auto j = 0U; j < num_alphabet; j++) {
-            rabin_map.insert({{empty_index, j}, (int_type) empty_index});
+            set_transition(empty_index, j, (int_type) empty_index);
           }
 
           num_empty = num_alphabet;
@@ -747,7 +766,7 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
           dbg(OutputType::General, std::print("# Empty  {}\n\n", empty_index));
         }
 
-        rabin_map.insert({{T->index, i}, (int_type) empty_index});
+        set_transition(T->index, i, (int_type) empty_index);
         num_empty++;
 
         continue;
@@ -770,13 +789,13 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
         set.insert(U);
         queue.push(std::make_shared<SafraTree>(*U));
 
-        rabin_map.insert({{T->index, i}, U->index});
+        set_transition(T->index, i, U->index);
         dbg(OutputType::General, std::print("# f({}, {}) -> {}\n\n", T->index, i, U->index));
         dbg(OutputType::General, std::print("# Unique  {}\n\n", U->index));
       } else {
         // same as a previously computed tree
         // add the corresponding transition
-        rabin_map.insert({{T->index, i}, (*itr)->index});
+        set_transition(T->index, i, (*itr)->index);
         dbg(OutputType::General, std::print("# f({}, {}) -> {}\n\n", T->index, i, (*itr)->index));
         dbg(OutputType::General, std::print("# Index  {}\n\n", (*itr)->index));
       }
@@ -784,13 +803,17 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
   }
 
   // double check # trees hashed is the same as # trees indexed
-  BOOST_ASSERT(num_trees == rabin_map.size()+1);
+  BOOST_ASSERT(num_trees == num_transitions+1);
+
+  // The table must be complete: exactly one transition per (state, symbol) for
+  // every discovered state, with no missing or duplicated entries.
+  BOOST_ASSERT(num_transitions == set.size() * num_alphabet);
 
   dbg(OutputType::Quiet, {
     std::print("# Trees Generated    {}\n", num_trees);
     std::print("# Trees Hashed       {}\n", set.size());
     std::print("# Empty Trees        {}\n", num_empty);
-    std::print("# Rabin Transitions  {}\n\n", rabin_map.size());
+    std::print("# Rabin Transitions  {}\n\n", num_transitions);
   });
 
   dbg(OutputType::General, {
@@ -813,8 +836,13 @@ std::unique_ptr<RabinAutomaton> BuchiAutomaton::Determinize(const TransitionMap 
     std::print("\n");
   });
 
+  // Trim the geometric over-allocation down to the exact dense size before
+  // handing the table off, so the spare capacity does not erode the memory win.
+  transitions.resize(set.size() * num_alphabet);
+  transitions.shrink_to_fit();
+
   auto rabin = std::make_unique<RabinAutomaton>(num_alphabet, set.size());
-  rabin->Init(rabin_map);
+  rabin->Init(transitions);
 
   dbg(OutputType::Quiet, std::print("\n# PAIRS\n"));
 

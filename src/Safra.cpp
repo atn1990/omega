@@ -6,6 +6,7 @@
 #include "Util.h"
 
 #include <ostream>
+#include <iterator>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -16,16 +17,35 @@ namespace omega {
 
 namespace {
 
+// Output iterator that folds each block produced by boost::to_block_range
+// directly into a hash seed, avoiding a temporary heap allocation per call.
+struct hash_block_sink {
+  using iterator_category = std::output_iterator_tag;
+  using value_type = void;
+  using difference_type = std::ptrdiff_t;
+  using pointer = void;
+  using reference = void;
+
+  size_t* seed;
+
+  hash_block_sink& operator=(boost::dynamic_bitset<>::block_type block) {
+    boost::hash_combine(*seed, block);
+    return *this;
+  }
+  hash_block_sink& operator*() { return *this; }
+  hash_block_sink& operator++() { return *this; }
+  hash_block_sink operator++(int) { return *this; }
+};
+
 // Hashes a dynamic_bitset by combining its underlying blocks plus the logical
-// size, avoiding the per-bit std::string allocation that boost::to_string
-// would perform. The size is included because to_block_range only yields whole
-// blocks and would otherwise conflate bitsets that share block contents but
-// differ in logical length.
+// size. The size is included because to_block_range only yields whole blocks
+// and would otherwise conflate bitsets that share block contents but differ in
+// logical length. This runs in the determinization inner loop millions of
+// times, so it streams blocks through hash_block_sink rather than allocating a
+// temporary vector on each call.
 void hash_bitset(size_t& seed, const boost::dynamic_bitset<>& bs) {
   boost::hash_combine(seed, bs.size());
-  std::vector<boost::dynamic_bitset<>::block_type> blocks(bs.num_blocks());
-  boost::to_block_range(bs, blocks.begin());
-  boost::hash_range(seed, blocks.begin(), blocks.end());
+  boost::to_block_range(bs, hash_block_sink{&seed});
 }
 
 } // namespace

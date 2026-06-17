@@ -8,7 +8,6 @@
 #include <functional>
 #include <iostream>
 
-#include <boost/graph/filtered_graph.hpp>
 #include <boost/graph/strong_components.hpp>
 
 template <>
@@ -29,9 +28,10 @@ RabinAutomaton::RabinAutomaton(size_type alphabet, size_type vertices)
   : Automaton(alphabet, vertices) {}
 
 // Build the underlying transition graph from a deterministic transition
-// function represented by a map from vertex-symbol pairs to vertices.
-void RabinAutomaton::Init(const RabinTransitionMap& map) {
-  BOOST_ASSERT(map.size() == num_vertices * num_alphabet);
+// function represented as a dense, row-major table indexed by
+// `vertex * num_alphabet + symbol`.
+void RabinAutomaton::Init(const std::vector<int_type>& transitions) {
+  BOOST_ASSERT(transitions.size() == num_vertices * num_alphabet);
 
   const auto vertex_width = decimal_digits(num_vertices-1);
   const auto symbol_width = decimal_digits(num_alphabet-1);
@@ -43,13 +43,10 @@ void RabinAutomaton::Init(const RabinTransitionMap& map) {
   // add edges in sorted order by source vertex and transition symbol
   for (auto i = 0UL; i < num_vertices; i++) {
     for (auto j = 0UL; j < num_alphabet; j++) {
-      auto itr = map.find({i, j});
+      auto tgt = transitions[i * num_alphabet + j];
+      dbg(OutputType::Quiet, std::print("({:{}}, {:{}})  -->  {:{}}\n", i, vertex_width, j, symbol_width, tgt, vertex_width));
 
-      // the transition system is deterministic
-      BOOST_ASSERT(itr != map.end());
-      dbg(OutputType::Quiet, std::print("({:{}}, {:{}})  -->  {:{}}\n", i, vertex_width, j, symbol_width, itr->second, vertex_width));
-
-      auto [e, b] = boost::add_edge(i, itr->second, graph);
+      auto [e, b] = boost::add_edge(i, tgt, graph);
       label[e] = j;
     }
   }
@@ -279,21 +276,124 @@ void RabinAutomaton::Clean() {
 bool RabinAutomaton::Universal() {
   dbg(OutputType::General, std::print("# Universal()\n\n"));
 
-  // Build an adjacency representation keyed by the original vertex indices.
   auto index = boost::get(boost::vertex_index, graph);
 
-  // Predicate that restricts the graph to a given set of active vertices.
-  struct VertexPredicate {
-    const boost::dynamic_bitset<>* active = nullptr;
-    bool operator()(graph_t::vertex_descriptor v) const {
-      return (*active)[v];
+  const int_type n = num_vertices;
+
+  // Build a compressed sparse row (CSR) adjacency once so the emptiness test
+  // below can explore the graph without re-iterating Boost edge lists at every
+  // recursion level. out_begin[v]..out_begin[v+1] indexes v's successors in
+  // `targets`; self_loop records vertices with an edge to themselves.
+  std::vector<int_type> out_begin(n + 1, 0);
+  for (int_type v = 0; v < n; v++) {
+    out_begin[v + 1] =
+      out_begin[v] + boost::out_degree(boost::vertex(v, graph), graph);
+  }
+
+  std::vector<int_type> targets(out_begin[n]);
+  boost::dynamic_bitset<> self_loop(n);
+  {
+    std::vector<int_type> pos(out_begin.begin(), out_begin.end() - 1);
+    for (int_type v = 0; v < n; v++) {
+      for (auto [itr, end] = boost::out_edges(boost::vertex(v, graph), graph);
+           itr != end; ++itr) {
+        auto w = index[boost::target(*itr, graph)];
+        targets[pos[v]++] = w;
+        if (w == v) {
+          self_loop.set(v);
+        }
+      }
     }
-  };
-  struct EdgePredicate {
-    const graph_t* g = nullptr;
-    const boost::dynamic_bitset<>* active = nullptr;
-    bool operator()(graph_t::edge_descriptor e) const {
-      return (*active)[boost::source(e, *g)] && (*active)[boost::target(e, *g)];
+  }
+
+  // Scratch state shared across all recursion levels. Tarjan visitation is
+  // marked with a monotonically increasing epoch so the O(n) arrays never need
+  // to be cleared between calls; `onstack` is always left empty when a call
+  // returns. This keeps each level proportional to the active sub-automaton
+  // rather than the whole graph.
+  std::vector<int_type> ord(n);
+  std::vector<int_type> low(n);
+  std::vector<int_type> stamp(n, 0);
+  boost::dynamic_bitset<> onstack(n);
+  std::vector<int_type> dfs_stack;
+  std::vector<int_type> ei_stack;
+  std::vector<int_type> scc_stack;
+  int_type epoch = 0;
+
+  // Iterative Tarjan restricted to the active vertices and the edges between
+  // them. Collects the strongly connected components into `comps`.
+  auto strong_components_active =
+    [&](const boost::dynamic_bitset<>& active,
+        std::vector<std::vector<int_type>>& comps) {
+    comps.clear();
+    ++epoch;
+    int_type counter = 0;
+
+    for (auto root : dynamic_bitset_iterator(active)) {
+      if (stamp[root] == epoch) {
+        continue;
+      }
+
+      dfs_stack.clear();
+      ei_stack.clear();
+      dfs_stack.push_back(root);
+      ei_stack.push_back(out_begin[root]);
+      stamp[root] = epoch;
+      ord[root] = low[root] = counter++;
+      scc_stack.push_back(root);
+      onstack.set(root);
+
+      while (!dfs_stack.empty()) {
+        auto v = dfs_stack.back();
+        auto ei = ei_stack.back();
+        bool descended = false;
+
+        while (ei < out_begin[v + 1]) {
+          auto w = targets[ei++];
+          if (!active[w]) {
+            continue;
+          }
+          if (stamp[w] != epoch) {
+            ei_stack.back() = ei;
+            stamp[w] = epoch;
+            ord[w] = low[w] = counter++;
+            scc_stack.push_back(w);
+            onstack.set(w);
+            dfs_stack.push_back(w);
+            ei_stack.push_back(out_begin[w]);
+            descended = true;
+            break;
+          } else if (onstack[w] && ord[w] < low[v]) {
+            low[v] = ord[w];
+          }
+        }
+
+        if (descended) {
+          continue;
+        }
+
+        // v is fully explored: close its SCC if it is a root, then backtrack.
+        if (low[v] == ord[v]) {
+          std::vector<int_type> component;
+          int_type w;
+          do {
+            w = scc_stack.back();
+            scc_stack.pop_back();
+            onstack.reset(w);
+            component.push_back(w);
+          } while (w != v);
+          comps.push_back(std::move(component));
+        }
+
+        dfs_stack.pop_back();
+        ei_stack.pop_back();
+        if (!dfs_stack.empty()) {
+          auto p = dfs_stack.back();
+          if (low[v] < low[p]) {
+            low[p] = low[v];
+          }
+        }
+      }
     }
   };
 
@@ -304,34 +404,26 @@ bool RabinAutomaton::Universal() {
       return false;
     }
 
-    VertexPredicate vp{&active};
-    EdgePredicate ep{&graph, &active};
-    boost::filtered_graph<graph_t, EdgePredicate, VertexPredicate> fg(graph, ep, vp);
+    std::vector<std::vector<int_type>> comps;
+    strong_components_active(active, comps);
 
-    std::vector<int32_t> component(num_vertices, TRIVIAL);
-    auto component_map = boost::make_iterator_property_map(component.begin(), index);
-    auto num_scc = boost::strong_components(fg, component_map,
-        boost::vertex_index_map(index));
+    // Reused across components to avoid repeated full-width allocations.
+    boost::dynamic_bitset<> C(n);
 
-    // Collect the vertices of each strongly connected component.
-    std::vector<boost::dynamic_bitset<>> comps(num_scc, boost::dynamic_bitset<>(num_vertices));
-    for (auto i : dynamic_bitset_iterator(active)) {
-      comps[component[i]].set(i);
-    }
-
-    for (auto& C : comps) {
+    for (auto& member : comps) {
       // A single-vertex component is non-trivial only if it has a self-loop.
-      if (C.count() == 1) {
-        auto v = C.find_first();
-        auto [e, loop] = boost::edge(boost::vertex(v, graph), boost::vertex(v, graph), graph);
-        if (!loop) {
-          continue;
-        }
+      if (member.size() == 1 && !self_loop[member.front()]) {
+        continue;
+      }
+
+      C.reset();
+      for (auto v : member) {
+        C.set(v);
       }
 
       // Pairs whose left condition is disjoint from the component cannot be
       // satisfied here, so their right-condition states must be avoided.
-      boost::dynamic_bitset<> bad(num_vertices);
+      boost::dynamic_bitset<> bad(n);
       for (const auto& pair : pairs) {
         if (!C.intersects(pair.left)) {
           bad |= (pair.right & C);

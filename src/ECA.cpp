@@ -1297,7 +1297,7 @@ void Tabulate(int_type k) {
     // std::print("  {:d}", Nilpotent(i, 5));
     std::print("  {:d}", InDegree(i, 1));
     std::print("  {:d}", InDegree(i, 2));
-    // std::print("  {:d}", InDegree(i, 3));
+    std::print("  {:d}", InDegree(i, 3));
     // Predecessor(i, 1);
     // Predecessor(i, 2);
     // Predecessor(i, 2, x);
