@@ -474,6 +474,58 @@ BOOST_AUTO_TEST_CASE(InDegreeOneAndTwo) {
   }
 }
 
+// InDegree(rule, 3) is true iff some configuration y has exactly three distinct
+// preimages under one application of the global map.
+//
+// False cases (no configuration has in-degree exactly three):
+//   - The constant rules 0 and 255 collapse everything onto a single image with
+//     infinite in-degree, so no finite in-degree occurs at all.
+//   - The boundary-invertible (bijective) rules 204, 51, 60, 195 and 240 have
+//     in-degree exactly 1 for every configuration.
+//   - The two-to-one rules 170, 90, 150, 105 and 154 have in-degree exactly 2
+//     for every configuration.
+//   In each of these classes the in-degree is the same for every configuration
+//   (1, 2, or infinite), so three is never attained.
+//
+// True cases: rules whose preimage count is non-uniform can have a
+// configuration with exactly three preimages. Rule 1 (output 1 only on the all
+// zero neighbourhood) is the smallest example. Take the configuration
+//     y = 0 0 0 0 1 1 1 1 ...   (four zeros followed by all ones).
+// With the left boundary x_{-1} = 0, the four leading zeros of y force x_2 = 1
+// and x_j = 0 for all j >= 3, while the only remaining freedom is the pair
+// (x_0, x_1), which must avoid (0, 0). That leaves exactly three preimages:
+//     0 1 1 0 0 0 ...,   1 0 1 0 0 0 ...,   1 1 1 0 0 0 ...
+// so InDegree(1, 3) holds. Rules 2 and 3 likewise admit a configuration with
+// exactly three preimages.
+BOOST_AUTO_TEST_CASE(InDegreeThree) {
+  std::map<int_type, bool> expected = {
+    // constant rules: only image has infinite in-degree
+    {0,   false},
+    {255, false},
+    // bijective rules: in-degree 1 everywhere
+    {204, false},
+    {51,  false},
+    {60,  false},
+    {195, false},
+    {240, false},
+    // two-to-one rules: in-degree 2 everywhere
+    {170, false},
+    {90,  false},
+    {150, false},
+    {105, false},
+    {154, false},
+    // non-uniform rules with a configuration of in-degree exactly 3
+    {1,   true},
+    {2,   true},
+    {3,   true},
+  };
+
+  for (auto [rule, result] : expected) {
+    BOOST_TEST(InDegree(rule, 3) == result,
+        "InDegree(" << rule << ", 3)");
+  }
+}
+
 BOOST_AUTO_TEST_CASE(ECATest1, * boost::unit_test::disabled()) {
   Run(110, 1, {});
 }
