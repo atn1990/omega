@@ -344,7 +344,7 @@ bool RabinAutomaton::Universal() {
         return true;
       }
 
-      if (non_empty(C - bad)) {
+      if (non_empty(C & ~bad)) {
         return true;
       }
     }
