@@ -395,7 +395,7 @@ void BuchiAutomaton::FindCycle(
     if (component[vertex_index[t]] == component[vertex_index[s]]) {
       path.push_back(symbol[*itr]);
 
-      std::print("({:{}}, {:0{}b})  -->  ({:{}})\n", vertex_index[s], vertex_width, symbol[*itr], edge_width, vertex_index[t], vertex_width);
+      std::print("({:{}}, {:0{}b})  -->  {:{}}\n", vertex_index[s], vertex_width, symbol[*itr], edge_width, vertex_index[t], vertex_width);
 
       break;
     }
@@ -468,97 +468,148 @@ bool BuchiAutomaton::Empty() {
     }
   }
 
-  dbg(OutputType::General, {
-    std::print("\nNon-Trivial Components\n");
+  dbg(OutputType::General, std::print("\nNon-Trivial Components\n"));
 
-    bool all_trivial = true;
+  bool all_trivial = true;
 
-    // Print the non-trivial components.
-    for (auto& list : component_lists) {
-      for (auto& u : list) {
-        auto k = vertex_index[u];
-        if (component[k] != TRIVIAL) {
-          all_trivial = false;
-          std::print("component({:{}})  =  {:{}}\n", k, vertex_width, component[k], scc_width);
-        }
+  // Print the non-trivial components.
+  for (auto& list : component_lists) {
+    for (auto& u : list) {
+      auto k = vertex_index[u];
+      if (component[k] != TRIVIAL) {
+        all_trivial = false;
+        dbg(OutputType::General, std::print("component({:{}})  =  {:{}}\n", k, vertex_width, component[k], scc_width));
       }
     }
+  }
 
-    if (all_trivial) {
-      std::print("All components are trivial\n");
-      return true;
-    }
+  if (all_trivial) {
+    dbg(OutputType::General, std::print("All components are trivial\n"));
+    return true;
+  }
 
-    std::print("\n");
-  });
+  dbg(OutputType::General, std::print("\n"));
 
-  bool empty = true;
+  // Compute reachability from the initial states with a single multi-source
+  // breadth-first traversal. The language is non-empty iff some final state
+  // lies in a non-trivial strongly connected component and is reachable from an
+  // initial state. Sharing one color map and predecessor forest across every
+  // initial state keeps the whole search O(V + E) rather than running an
+  // independent O(V + E) BFS per initial state.
+  std::vector<graph_t::vertex_descriptor> pred(num_vertices);
+  color_map_t color_map(num_vertices, vertex_index);
+
+  // Initialize the search forest: every vertex is white and its own root.
+  for (size_type k = 0; k < num_vertices; k++) {
+    auto w = boost::vertex(k, graph);
+    pred[k] = w;
+    boost::put(color_map, w, color_t::white());
+  }
+
+  auto visitor =
+    boost::make_bfs_visitor(
+        boost::record_predecessors(&pred[0], boost::on_tree_edge()));
+
   for (auto i : dynamic_bitset_iterator(initial_states)) {
     auto u = boost::vertex(i, graph);
 
-    // Predecessor Map
-    std::vector<graph_t::vertex_descriptor> pred(num_vertices);
-    color_map_t color_map(num_vertices, vertex_index);
+    // Only seed a search from an initial state not yet discovered; the shared
+    // color map accumulates reachability across all initial states.
+    if (boost::get(color_map, u) == color_t::white()) {
+      boost::breadth_first_visit(
+          graph, u, boost::visitor(visitor).color_map(color_map));
+    }
+  }
 
-    auto visitor =
-      boost::make_bfs_visitor(
-          boost::record_predecessors(&pred[0], boost::on_tree_edge()));
+  bool empty = true;
+  for (auto j : dynamic_bitset_iterator(final_states)) {
+    auto v = boost::vertex(j, graph);
 
-    // Start a BFS from each of the initial vertices
-    boost::breadth_first_search(
-        graph, u, boost::visitor(visitor).color_map(color_map));
+    if (component[j] == TRIVIAL) {
+      continue;
+    }
 
-    for (auto j : dynamic_bitset_iterator(final_states)) {
-      auto v = boost::vertex(j, graph);
+    // If color[v] == white, then v was unreachable from every initial state.
+    if (boost::get(color_map, v) == color_t::white()) {
+      continue;
+    }
 
-      if (component[j] == TRIVIAL) {
-        continue;
+    // A reachable final state in a non-trivial component witnesses an accepting
+    // run, so the language is non-empty.
+    empty = false;
+    break;
+  }
+
+  if (!empty) {
+    dbg(OutputType::General, {
+      // Select the witness with the same precedence as the original
+      // per-initial-state search: the smallest initial state (in iteration
+      // order) that reaches an accepting component, then the smallest such
+      // final state. Because the multi-source search seeds initial states in
+      // increasing order, the root of a vertex in the shared predecessor forest
+      // is the smallest-indexed initial state that reaches it, so minimizing
+      // (root, final) reproduces the original (initial, final) witness.
+      bool found = false;
+      graph_t::vertex_descriptor witness = graph_t::null_vertex();
+      int_type witness_final = 0;
+      int_type witness_root = 0;
+
+      for (auto j : dynamic_bitset_iterator(final_states)) {
+        auto v = boost::vertex(j, graph);
+
+        if (component[j] == TRIVIAL) {
+          continue;
+        }
+
+        if (boost::get(color_map, v) == color_t::white()) {
+          continue;
+        }
+
+        // Recover the initial state at the root of this vertex's search tree.
+        auto root = v;
+        while (pred[root] != root) {
+          root = pred[root];
+        }
+        auto root_index = vertex_index[root];
+
+        if (!found || root_index < witness_root) {
+          found = true;
+          witness = v;
+          witness_final = j;
+          witness_root = root_index;
+        }
       }
 
-      // If color[v] == white, then v was unvisited
-      if (boost::get(color_map, v) == color_t::white()) {
-        continue;
-      }
+      std::vector<int_type> path;
 
-      // There is a path from an initial state to a final state in a non-trivial strongly connected component
-      dbg(OutputType::General, {
-        std::vector<int_type> path;
+      // Output the path from the initial state to the final state
+      std::print("{}  -->  {}\n", witness_root, witness_final);
+      FindPath(pred, witness, path);
 
-        // Output the path from the initial state to the final state
-        std::print("{}  -->  {}\n", i, j);
-        FindPath(pred, v, path);
+      // Output a cycle in the strongly connected component
+      std::print("\n{}  -->  {}\n", witness_final, witness_final);
+      FindCycle(witness, component, path);
+      std::print("\n");
 
-        // Output a cycle in the strongly connected component
-        std::print("\n{}  -->  {}\n", j, j);
-        FindCycle(v, component, path);
-        std::print("\n");
+      auto tracks = binary_digits(num_alphabet-1);
+      // Output the labels of the edges visited
+      for (auto k = 0; k < tracks; k++) {
+        // Print the phantom zero except for the last track
+        if (k < tracks - 1) {
+          std::print("0  ");
+        } else {
+          std::print("   ");
+        }
 
-        auto tracks = binary_digits(num_alphabet-1);
-        // Output the labels of the edges visited
-        for (auto k = 0; k < tracks; k++) {
-          // Print the phantom zero except for the last track
-          if (k < tracks - 1) {
-            std::print("0  ");
-          } else {
-            std::print("   ");
-          }
-
-          for (auto l : path) {
-            std::print("{}  ", map_bit(l, k));
-          }
-
-          std::print("\n");
+        for (auto l : path) {
+          std::print("{}  ", map_bit(l, k));
         }
 
         std::print("\n");
-      });
+      }
 
-      empty = false;
-    }
-
-    if (!empty) {
-      break;
-    }
+      std::print("\n");
+    });
   }
 
   dbg(OutputType::General, std::print("\n"));
