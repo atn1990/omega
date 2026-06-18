@@ -492,73 +492,91 @@ bool BuchiAutomaton::Empty() {
     std::print("\n");
   });
 
-  bool empty = true;
+  // Compute reachability from the initial states with a single multi-source
+  // breadth-first traversal. The language is non-empty iff some final state
+  // lies in a non-trivial strongly connected component and is reachable from an
+  // initial state. Sharing one color map and predecessor forest across every
+  // initial state keeps the whole search O(V + E) rather than running an
+  // independent O(V + E) BFS per initial state.
+  std::vector<graph_t::vertex_descriptor> pred(num_vertices);
+  color_map_t color_map(num_vertices, vertex_index);
+
+  // Initialize the search forest: every vertex is white and its own root.
+  for (size_type k = 0; k < num_vertices; k++) {
+    auto w = boost::vertex(k, graph);
+    pred[k] = w;
+    boost::put(color_map, w, color_t::white());
+  }
+
+  auto visitor =
+    boost::make_bfs_visitor(
+        boost::record_predecessors(&pred[0], boost::on_tree_edge()));
+
   for (auto i : dynamic_bitset_iterator(initial_states)) {
     auto u = boost::vertex(i, graph);
 
-    // Predecessor Map
-    std::vector<graph_t::vertex_descriptor> pred(num_vertices);
-    color_map_t color_map(num_vertices, vertex_index);
+    // Only seed a search from an initial state not yet discovered; the shared
+    // color map accumulates reachability across all initial states.
+    if (boost::get(color_map, u) == color_t::white()) {
+      boost::breadth_first_visit(
+          graph, u, boost::visitor(visitor).color_map(color_map));
+    }
+  }
 
-    auto visitor =
-      boost::make_bfs_visitor(
-          boost::record_predecessors(&pred[0], boost::on_tree_edge()));
+  bool empty = true;
+  for (auto j : dynamic_bitset_iterator(final_states)) {
+    auto v = boost::vertex(j, graph);
 
-    // Start a BFS from each of the initial vertices
-    boost::breadth_first_search(
-        graph, u, boost::visitor(visitor).color_map(color_map));
+    if (component[j] == TRIVIAL) {
+      continue;
+    }
 
-    for (auto j : dynamic_bitset_iterator(final_states)) {
-      auto v = boost::vertex(j, graph);
+    // If color[v] == white, then v was unreachable from every initial state.
+    if (boost::get(color_map, v) == color_t::white()) {
+      continue;
+    }
 
-      if (component[j] == TRIVIAL) {
-        continue;
+    // There is a path from an initial state to a final state in a non-trivial strongly connected component
+    dbg(OutputType::General, {
+      // Recover the initial state at the root of this vertex's search tree.
+      auto root = v;
+      while (pred[root] != root) {
+        root = pred[root];
       }
 
-      // If color[v] == white, then v was unvisited
-      if (boost::get(color_map, v) == color_t::white()) {
-        continue;
-      }
+      std::vector<int_type> path;
 
-      // There is a path from an initial state to a final state in a non-trivial strongly connected component
-      dbg(OutputType::General, {
-        std::vector<int_type> path;
+      // Output the path from the initial state to the final state
+      std::print("{}  -->  {}\n", vertex_index[root], j);
+      FindPath(pred, v, path);
 
-        // Output the path from the initial state to the final state
-        std::print("{}  -->  {}\n", i, j);
-        FindPath(pred, v, path);
+      // Output a cycle in the strongly connected component
+      std::print("\n{}  -->  {}\n", j, j);
+      FindCycle(v, component, path);
+      std::print("\n");
 
-        // Output a cycle in the strongly connected component
-        std::print("\n{}  -->  {}\n", j, j);
-        FindCycle(v, component, path);
-        std::print("\n");
+      auto tracks = binary_digits(num_alphabet-1);
+      // Output the labels of the edges visited
+      for (auto k = 0; k < tracks; k++) {
+        // Print the phantom zero except for the last track
+        if (k < tracks - 1) {
+          std::print("0  ");
+        } else {
+          std::print("   ");
+        }
 
-        auto tracks = binary_digits(num_alphabet-1);
-        // Output the labels of the edges visited
-        for (auto k = 0; k < tracks; k++) {
-          // Print the phantom zero except for the last track
-          if (k < tracks - 1) {
-            std::print("0  ");
-          } else {
-            std::print("   ");
-          }
-
-          for (auto l : path) {
-            std::print("{}  ", map_bit(l, k));
-          }
-
-          std::print("\n");
+        for (auto l : path) {
+          std::print("{}  ", map_bit(l, k));
         }
 
         std::print("\n");
-      });
+      }
 
-      empty = false;
-    }
+      std::print("\n");
+    });
 
-    if (!empty) {
-      break;
-    }
+    empty = false;
+    break;
   }
 
   dbg(OutputType::General, std::print("\n"));

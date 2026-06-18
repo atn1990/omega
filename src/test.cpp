@@ -238,6 +238,145 @@ BOOST_AUTO_TEST_CASE(MinimizeIsIdempotent) {
 BOOST_AUTO_TEST_SUITE_END()
 
 // -------------------------------------------------------------------------
+// Empty
+// -------------------------------------------------------------------------
+//
+// Empty() decides whether the omega-language recognized by a Buchi automaton
+// is empty. By the standard characterization, the language is non-empty iff
+// some final state lies on a reachable cycle (equivalently, a final state in a
+// non-trivial strongly connected component is reachable from an initial state).
+// Every expectation below follows directly from that invariant for a
+// hand-constructed graph, never from an opaque computed result.
+
+BOOST_AUTO_TEST_SUITE(EmptyTests)
+
+// A Buchi automaton with no final states accepts nothing.
+BOOST_AUTO_TEST_CASE(NoFinalStatesIsEmpty) {
+  BuchiAutomaton B(2, 1);
+  TransitionMap m = {
+    {{0, 0}, 0},
+  };
+  B.initial_states = make_bitset("1");
+  B.final_states = make_bitset("0");
+  B.Init(m);
+
+  BOOST_TEST(B.Empty() == true);
+}
+
+// A single initial+final state with a self loop has an accepting run
+// (the loop visits the final state infinitely often), so the language is
+// non-empty.
+BOOST_AUTO_TEST_CASE(FinalSelfLoopIsNonEmpty) {
+  BuchiAutomaton B(2, 1);
+  TransitionMap m = {
+    {{0, 0}, 0},
+  };
+  B.initial_states = make_bitset("1");
+  B.final_states = make_bitset("1");
+  B.Init(m);
+
+  BOOST_TEST(B.Empty() == false);
+}
+
+// A final state with no incoming cycle cannot be visited infinitely often:
+// state 0 (initial) transitions once to state 1 (final), which is a sink.
+// There is no accepting run, so the language is empty.
+BOOST_AUTO_TEST_CASE(FinalWithoutCycleIsEmpty) {
+  BuchiAutomaton B(2, 2);
+  TransitionMap m = {
+    {{0, 0}, 1},
+  };
+  B.initial_states = make_bitset("01");
+  B.final_states = make_bitset("10");
+  B.Init(m);
+
+  BOOST_TEST(B.Empty() == true);
+}
+
+// A final state on a reachable non-trivial cycle yields an accepting run.
+// state 0 (initial) reaches the 2-cycle 1 <-> 2, whose member 2 is final.
+BOOST_AUTO_TEST_CASE(ReachableFinalCycleIsNonEmpty) {
+  BuchiAutomaton B(2, 3);
+  TransitionMap m = {
+    {{0, 0}, 1},
+    {{1, 0}, 2},
+    {{2, 0}, 1},
+  };
+  B.initial_states = make_bitset("001");
+  B.final_states = make_bitset("100");
+  B.Init(m);
+
+  BOOST_TEST(B.Empty() == false);
+}
+
+// The same final cycle 1 <-> 2 exists, but no initial state reaches it
+// (state 0 is the only initial state and has no outgoing edges). With the
+// accepting cycle unreachable, the language is empty.
+BOOST_AUTO_TEST_CASE(UnreachableFinalCycleIsEmpty) {
+  BuchiAutomaton B(2, 3);
+  TransitionMap m = {
+    {{1, 0}, 2},
+    {{2, 0}, 1},
+  };
+  B.initial_states = make_bitset("001");
+  B.final_states = make_bitset("100");
+  B.Init(m);
+
+  BOOST_TEST(B.Empty() == true);
+}
+
+// With multiple initial states, an accepting cycle reachable from only one of
+// them still makes the language non-empty. Here state 0 is a dead initial
+// state while state 1 (also initial) reaches the final cycle 2 <-> 3.
+BOOST_AUTO_TEST_CASE(MultipleInitialStatesReachableIsNonEmpty) {
+  BuchiAutomaton B(2, 4);
+  TransitionMap m = {
+    {{1, 0}, 2},
+    {{2, 0}, 3},
+    {{3, 0}, 2},
+  };
+  B.initial_states = make_bitset("0011");
+  B.final_states = make_bitset("1000");
+  B.Init(m);
+
+  BOOST_TEST(B.Empty() == false);
+}
+
+// With multiple initial states but no accepting cycle reachable from any of
+// them (both initial states lead to distinct sinks), the language is empty.
+BOOST_AUTO_TEST_CASE(MultipleInitialStatesNoCycleIsEmpty) {
+  BuchiAutomaton B(2, 4);
+  TransitionMap m = {
+    {{0, 0}, 2},
+    {{1, 0}, 3},
+  };
+  B.initial_states = make_bitset("0011");
+  B.final_states = make_bitset("1000");
+  B.Init(m);
+
+  BOOST_TEST(B.Empty() == true);
+}
+
+// A non-final state on a cycle does not make the language non-empty: the only
+// cycle 1 <-> 2 contains no final state, and the lone final state 0 is not on
+// any cycle.
+BOOST_AUTO_TEST_CASE(NonFinalCycleIsEmpty) {
+  BuchiAutomaton B(2, 3);
+  TransitionMap m = {
+    {{0, 0}, 1},
+    {{1, 0}, 2},
+    {{2, 0}, 1},
+  };
+  B.initial_states = make_bitset("001");
+  B.final_states = make_bitset("001");
+  B.Init(m);
+
+  BOOST_TEST(B.Empty() == true);
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+// -------------------------------------------------------------------------
 // RabinPair
 // -------------------------------------------------------------------------
 
