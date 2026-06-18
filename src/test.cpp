@@ -467,10 +467,8 @@ BOOST_AUTO_TEST_CASE(InDegreeOneAndTwo) {
   };
 
   for (auto [rule, result] : expected) {
-    BOOST_TEST(InDegree(rule, 1) == result.first,
-        "InDegree(" << rule << ", 1)");
-    BOOST_TEST(InDegree(rule, 2) == result.second,
-        "InDegree(" << rule << ", 2)");
+    BOOST_TEST(InDegree(rule, 1) == result.first, std::format("InDegree({}, 1)", rule));
+    BOOST_TEST(InDegree(rule, 2) == result.second, std::format("InDegree({}, 2)", rule));
   }
 }
 
@@ -521,8 +519,7 @@ BOOST_AUTO_TEST_CASE(InDegreeThree) {
   };
 
   for (auto [rule, result] : expected) {
-    BOOST_TEST(InDegree(rule, 3) == result,
-        "InDegree(" << rule << ", 3)");
+    BOOST_TEST(InDegree(rule, 3) == result, std::format("InDegree({}, 3)", rule));
   }
 }
 
@@ -531,24 +528,26 @@ BOOST_AUTO_TEST_CASE(ECATest1, * boost::unit_test::disabled()) {
 }
 
 BOOST_AUTO_TEST_CASE(BaseTest) {
+  BOOST_TEST(Cycle(0, 2) == false);
+  BOOST_TEST(Cycle(255, 2) == false);
+  BOOST_TEST(Nilpotent(0, 1) == true);
+  BOOST_TEST(Nilpotent(204, 1) == true);
+  BOOST_TEST(Nilpotent(255, 1) == true);
+  BOOST_TEST(Shift(2, 1, ShiftType::Left) == true);
+  BOOST_TEST(Shift(0, 1, ShiftType::Right) == false);
+  BOOST_TEST(Shift(16, 1, ShiftType::Right) == true);
+  BOOST_TEST(Shift(255, 1, ShiftType::Right) == false);
+}
+
+BOOST_AUTO_TEST_CASE(Rule110Test) {
   BOOST_TEST(Injective(110) == false);
   BOOST_TEST(Surjective(110) == false);
   BOOST_TEST(Cycle(110, 1) == true);
-  BOOST_TEST(Cycle(0, 2) == false);
-  BOOST_TEST(Cycle(255, 2) == false);
   BOOST_TEST(Cycle(110, 2) == true);
   BOOST_TEST(Cycle(110, 3) == true);
   BOOST_TEST(Cycle(110, 5) == true);
   BOOST_TEST(Cycle(110, 7) == true);
-  BOOST_TEST(Nilpotent(0, 1) == true);
-  BOOST_TEST(Nilpotent(255, 1) == true);
-  BOOST_TEST(Nilpotent(204, 1) == true);
   BOOST_TEST(Nilpotent(110, 2) == false);
-  BOOST_TEST(Shift(0, 1, ShiftType::Right) == false);
-  BOOST_TEST(Shift(255, 1, ShiftType::Right) == false);
-  BOOST_TEST(Shift(16, 1, ShiftType::Right) == true);
-  BOOST_TEST(Shift(2, 1, ShiftType::Left) == true);
 }
-
 
 BOOST_AUTO_TEST_SUITE_END()
