@@ -395,7 +395,7 @@ void BuchiAutomaton::FindCycle(
     if (component[vertex_index[t]] == component[vertex_index[s]]) {
       path.push_back(symbol[*itr]);
 
-      std::print("({:{}}, {:0{}b})  -->  ({:{}})\n", vertex_index[s], vertex_width, symbol[*itr], edge_width, vertex_index[t], vertex_width);
+      std::print("({:{}}, {:0{}b})  -->  {:{}}\n", vertex_index[s], vertex_width, symbol[*itr], edge_width, vertex_index[t], vertex_width);
 
       break;
     }
@@ -468,29 +468,27 @@ bool BuchiAutomaton::Empty() {
     }
   }
 
-  dbg(OutputType::General, {
-    std::print("\nNon-Trivial Components\n");
+  dbg(OutputType::General, std::print("\nNon-Trivial Components\n"));
 
-    bool all_trivial = true;
+  bool all_trivial = true;
 
-    // Print the non-trivial components.
-    for (auto& list : component_lists) {
-      for (auto& u : list) {
-        auto k = vertex_index[u];
-        if (component[k] != TRIVIAL) {
-          all_trivial = false;
-          std::print("component({:{}})  =  {:{}}\n", k, vertex_width, component[k], scc_width);
-        }
+  // Print the non-trivial components.
+  for (auto& list : component_lists) {
+    for (auto& u : list) {
+      auto k = vertex_index[u];
+      if (component[k] != TRIVIAL) {
+        all_trivial = false;
+        dbg(OutputType::General, std::print("component({:{}})  =  {:{}}\n", k, vertex_width, component[k], scc_width));
       }
     }
+  }
 
-    if (all_trivial) {
-      std::print("All components are trivial\n");
-      return true;
-    }
+  if (all_trivial) {
+    dbg(OutputType::General, std::print("All components are trivial\n"));
+    return true;
+  }
 
-    std::print("\n");
-  });
+  dbg(OutputType::General, std::print("\n"));
 
   // Compute reachability from the initial states with a single multi-source
   // breadth-first traversal. The language is non-empty iff some final state
