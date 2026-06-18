@@ -1,11 +1,11 @@
+#include <assert.h>
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
-#include <unistd.h>
-#include <errno.h>
 #include <string.h>
-#include <assert.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 static unsigned int k_bound = 8;
 static unsigned int t_bound = 1000000;
