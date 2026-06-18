@@ -49,6 +49,10 @@ struct GlobalMapOpts {
 // pair indicates which tracks evolve under the global map
 // opts indicates some options for constructing the automaton
 std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pair, GlobalMapOpts opts = GlobalMapOpts()) {
+  BOOST_ASSERT_MSG(pair.first < k, "Track index out of bounds");
+  BOOST_ASSERT_MSG(pair.second < k, "Track index out of bounds");
+  BOOST_ASSERT_MSG(pair.first != pair.second, "Tracks must be different");
+
   // S = 2^k, N = 10
   auto num_states = ECA_SIZE;
   if (!opts.full) {
@@ -189,6 +193,9 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
 // k is the number of tracks
 // pair indicates which tracks should be checked for equality
 std::unique_ptr<BuchiAutomaton> Equality(int_type k, int_pair pair) {
+  BOOST_ASSERT_MSG(pair.first < k, "Track index out of bounds");
+  BOOST_ASSERT_MSG(pair.second < k, "Track index out of bounds");
+  BOOST_ASSERT_MSG(pair.first != pair.second, "Tracks must be different");
   auto M = std::make_unique<BuchiAutomaton>(std::exp2(k), 1);
 
   auto label = boost::get(boost::edge_name, M->graph);
@@ -214,6 +221,10 @@ std::unique_ptr<BuchiAutomaton> Equality(int_type k, int_pair pair) {
 
 // Modify a Büchi automaton to ensure that two specified tracks are equal.
 void Equality(BuchiAutomaton& M, int_pair pair) {
+  BOOST_ASSERT_MSG(static_cast<int_type>(std::exp2(pair.first)) < M.num_alphabet, "Track index out of bounds");
+  BOOST_ASSERT_MSG(static_cast<int_type>(std::exp2(pair.second)) < M.num_alphabet, "Track index out of bounds");
+  BOOST_ASSERT_MSG(pair.first != pair.second, "Tracks must be different");
+
   dbg(OutputType::General, std::print("# x{} == x{}\n", pair.first, pair.second));
 
   auto label = boost::get(boost::edge_name, M.graph);
@@ -234,6 +245,10 @@ void Equality(BuchiAutomaton& M, int_pair pair) {
 // The product P is two copies of M, one where the tracks have not differed,
 // and one where they have.
 std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
+  BOOST_ASSERT_MSG(static_cast<int_type>(std::exp2(pair.first)) < M.num_alphabet, "Track index out of bounds");
+  BOOST_ASSERT_MSG(static_cast<int_type>(std::exp2(pair.second)) < M.num_alphabet, "Track index out of bounds");
+  BOOST_ASSERT_MSG(pair.first != pair.second, "Tracks must be different");
+
   auto P = std::make_unique<BuchiAutomaton>(M.num_alphabet);
 
   dbg(OutputType::Debug, std::print("# Inequality({}, {})\n", pair.first, pair.second));
@@ -593,6 +608,10 @@ std::string to_string(ShiftType shift) {
 // - Similarly, from state 2, transition to state 1 or 2 based on the corresponding track's symbol, or to the crash state if `full` is true and the symbol does not match.
 // - The crash state absorbs all transitions, meaning any symbol will loop back to itself.
 std::unique_ptr<BuchiAutomaton> Shift(int_type k, int_pair pair, ShiftType shift, bool full = false) {
+  BOOST_ASSERT_MSG(pair.first < k, "Track index out of bounds");
+  BOOST_ASSERT_MSG(pair.second < k, "Track index out of bounds");
+  BOOST_ASSERT_MSG(pair.first != pair.second, "Tracks must be different");
+
   dbg(OutputType::Debug, std::print("# {}-Shift({}, {{{}, {}}})\n", to_string(shift), k, pair.first, pair.second));
 
   auto num_states = 4;
@@ -1175,9 +1194,6 @@ std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
     }
   }
 
-  // char fmt[MAXLINE];
-  // snprintf(fmt, MAXLINE, "(%%%du, ", decimal_digits(M->num_vertices));
-
   B->Init(de_bruijn);
 
   dbg(OutputType::Debug, B->Print());
@@ -1239,7 +1255,6 @@ void Run(int_type r, int_type k, const std::vector<std::string>& p) {
 
   std::print("{:d}\n", Injective(r));
   std::print("{:d}\n", Surjective(r));
-  // FixedPoint(r, p);
   std::print("{:d}\n", Cycle(r, k));
   // Predecessor(r, k, p);
   std::print("{:d}\n", InDegree(r, k));
@@ -1286,7 +1301,7 @@ void Tabulate(int_type k) {
     std::print("  {:d}", Cycle(i, 3));
     std::print("  {:d}", Cycle(i, 4));
     std::print("  {:d}", Cycle(i, 5));
-    // std::print("  {:d}", Cycle(i, 6));
+    std::print("  {:d}", Cycle(i, 6));
     // std::print("  {:d}", Cycle(i, 7));
     // std::print("  {:d}", Cycle(i, 8));
     // std::print("  {:d}", Cycle(i, 9));
@@ -1307,10 +1322,10 @@ void Tabulate(int_type k) {
     // Predecessor(i, 5, x);
     std::print("  {:d}", Shift(i, 1, ShiftType::Left));
     std::print("  {:d}", Shift(i, 2, ShiftType::Left));
-    // std::print("  {:d}", Shift(i, 3, ShiftType::Left));
+    std::print("  {:d}", Shift(i, 3, ShiftType::Left));
     std::print("  {:d}", Shift(i, 1, ShiftType::Right));
     std::print("  {:d}", Shift(i, 2, ShiftType::Right));
-    // std::print("  {:d}", Shift(i, 3, ShiftType::Right));
+    std::print("  {:d}", Shift(i, 3, ShiftType::Right));
     // std::print("  {:d}", Shift(i, 3, ShiftType::Right, y));
     // std::print("  {:d}", Shift(i, 4, ShiftType::Right, y));
     // std::print("  {:d}", Shift(i, 5, ShiftType::Right, y));
