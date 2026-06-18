@@ -541,74 +541,75 @@ bool BuchiAutomaton::Empty() {
   }
 
   if (!empty) {
-    // Always emit a witness for the non-empty language, in both debug and
-    // release builds. Select the witness with the same precedence as the
-    // original per-initial-state search: the smallest initial state (in
-    // iteration order) that reaches an accepting component, then the smallest
-    // such final state. Because the multi-source search seeds initial states in
-    // increasing order, the root of a vertex in the shared predecessor forest
-    // is the smallest-indexed initial state that reaches it, so minimizing
-    // (root, final) reproduces the original (initial, final) witness.
-    bool found = false;
-    graph_t::vertex_descriptor witness = graph_t::null_vertex();
-    int_type witness_final = 0;
-    int_type witness_root = 0;
+    dbg(OutputType::General, {
+      // Select the witness with the same precedence as the original
+      // per-initial-state search: the smallest initial state (in iteration
+      // order) that reaches an accepting component, then the smallest such
+      // final state. Because the multi-source search seeds initial states in
+      // increasing order, the root of a vertex in the shared predecessor forest
+      // is the smallest-indexed initial state that reaches it, so minimizing
+      // (root, final) reproduces the original (initial, final) witness.
+      bool found = false;
+      graph_t::vertex_descriptor witness = graph_t::null_vertex();
+      int_type witness_final = 0;
+      int_type witness_root = 0;
 
-    for (auto j : dynamic_bitset_iterator(final_states)) {
-      auto v = boost::vertex(j, graph);
+      for (auto j : dynamic_bitset_iterator(final_states)) {
+        auto v = boost::vertex(j, graph);
 
-      if (component[j] == TRIVIAL) {
-        continue;
+        if (component[j] == TRIVIAL) {
+          continue;
+        }
+
+        if (boost::get(color_map, v) == color_t::white()) {
+          continue;
+        }
+
+        // Recover the initial state at the root of this vertex's search tree.
+        auto root = v;
+        while (pred[root] != root) {
+          root = pred[root];
+        }
+        auto root_index = vertex_index[root];
+
+        if (!found || root_index < witness_root) {
+          found = true;
+          witness = v;
+          witness_final = j;
+          witness_root = root_index;
+        }
       }
 
-      if (boost::get(color_map, v) == color_t::white()) {
-        continue;
-      }
+      std::vector<int_type> path;
 
-      // Recover the initial state at the root of this vertex's search tree.
-      auto root = v;
-      while (pred[root] != root) {
-        root = pred[root];
-      }
-      auto root_index = vertex_index[root];
+      // Output the path from the initial state to the final state
+      std::print("{}  -->  {}\n", witness_root, witness_final);
+      FindPath(pred, witness, path);
 
-      if (!found || root_index < witness_root) {
-        found = true;
-        witness = v;
-        witness_final = j;
-        witness_root = root_index;
-      }
-    }
+      // Output a cycle in the strongly connected component
+      std::print("\n{}  -->  {}\n", witness_final, witness_final);
+      FindCycle(witness, component, path);
+      std::print("\n");
 
-    std::vector<int_type> path;
+      auto tracks = binary_digits(num_alphabet-1);
+      // Output the labels of the edges visited
+      for (auto k = 0; k < tracks; k++) {
+        // Print the phantom zero except for the last track
+        if (k < tracks - 1) {
+          std::print("0  ");
+        } else {
+          std::print("   ");
+        }
 
-    // Output the path from the initial state to the final state
-    std::print("{}  -->  {}\n", witness_root, witness_final);
-    FindPath(pred, witness, path);
+        for (auto l : path) {
+          std::print("{}  ", map_bit(l, k));
+        }
 
-    // Output a cycle in the strongly connected component
-    std::print("\n{}  -->  {}\n", witness_final, witness_final);
-    FindCycle(witness, component, path);
-    std::print("\n");
-
-    auto tracks = binary_digits(num_alphabet-1);
-    // Output the labels of the edges visited
-    for (auto k = 0; k < tracks; k++) {
-      // Print the phantom zero except for the last track
-      if (k < tracks - 1) {
-        std::print("0  ");
-      } else {
-        std::print("   ");
-      }
-
-      for (auto l : path) {
-        std::print("{}  ", map_bit(l, k));
+        std::print("\n");
       }
 
       std::print("\n");
-    }
-
-    std::print("\n");
+    });
   }
 
   dbg(OutputType::General, std::print("\n"));
