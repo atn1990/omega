@@ -398,8 +398,8 @@ bool RabinAutomaton::Universal() {
   };
 
   // Recursive Streett emptiness test on the set of active vertices.
-  std::function<bool(boost::dynamic_bitset<>)> non_empty =
-    [&](boost::dynamic_bitset<> active) -> bool {
+  std::function<bool(const boost::dynamic_bitset<>&)> non_empty =
+    [&](const boost::dynamic_bitset<>& active) -> bool {
     if (active.none()) {
       return false;
     }
