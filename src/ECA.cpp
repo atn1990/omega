@@ -391,16 +391,15 @@ std::unique_ptr<BuchiAutomaton> Inequality(int_type k, int_pair pair) {
   return M;
 }
 
-// Construct a Büchi automaton to check if track is a forbidden configuration.
+// Construct a Büchi automaton to check if track is a forbidden configuration
 std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::string& s) {
   auto start = 0U;
 
   graph_t::vertex_descriptor u, v, w;
   graph_t::edge_descriptor e;
-  bool added;
 
   auto M = std::make_unique<BuchiAutomaton>(std::exp2(k), s.length() + 2);
-  auto label  = boost::get(boost::edge_name, M->graph);
+  auto label = boost::get(boost::edge_name, M->graph);
   auto type = boost::get(boost::vertex_name, M->graph);
 
   // u is the final state
@@ -408,10 +407,10 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
   // however, if an arbitrary transient is allowed, the initial state is the
   // final state
   if (s[0] == '2') {
-    u = boost::vertex(1, M->graph);
     start = 1;
+    u = boost::vertex(start, M->graph);
   } else {
-    u = boost::vertex(s.length() + 1, M->graph);
+    u = boost::vertex(s.length()+1, M->graph);
   }
 
   for (auto i = start; i < s.length(); i++) {
@@ -421,7 +420,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
     type[v] = NodeType::None;
 
     if (s[i] == '*') {
-      if (i < s.length() - 1) {
+      if (i < s.length()-1) {
         i++;
         v = boost::vertex(i-2, M->graph);
         w = boost::vertex(i+1, M->graph);
@@ -434,63 +433,63 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
       int_type symbol = s[i % s.length()] - '0';
       if (map_bit(j, n) == symbol) {
         if (i < s.length()-1 && s[i+1] == '*') {
-          std::tie(e, added) = boost::add_edge(v, v, M->graph);
+          std::tie(e, std::ignore) = boost::add_edge(v, v, M->graph);
         } else {
-          std::tie(e, added) = boost::add_edge(v, w, M->graph);
+          std::tie(e, std::ignore) = boost::add_edge(v, w, M->graph);
         }
       } else if (i < s.length()-1 && s[i+1] == '*') {
         continue;
       } else {
-        std::tie(e, added) = boost::add_edge(v, u, M->graph);
+        std::tie(e, std::ignore) = boost::add_edge(v, u, M->graph);
       }
 
       label[e] = j;
     }
   }
 
-  if (s[s.length() - 1] != '*') {
+  if (s.back() != '*') {
     v = boost::vertex(s.length(), M->graph);
   } else {
     v = boost::vertex(s.length() - 2, M->graph);
   }
 
-  if (s[start + 1] != '*') {
-    w = boost::vertex(start + 1, M->graph);
+  if (s[start+1] != '*') {
+    w = boost::vertex(start+1, M->graph);
   } else {
-    w = boost::vertex(start + 3, M->graph);
+    w = boost::vertex(start+3, M->graph);
   }
 
   type[v] = NodeType::None;
 
   int_type symbol;
   for (auto j = 0UL; j < M->num_alphabet; j++) {
-    if (s[start + 1] != '*') {
+    if (s[start+1] != '*') {
       symbol = s[start] - '0';
       if (map_bit(j, n) == symbol) {
-        auto [e, b] = boost::add_edge(v, w, M->graph);
-      } else if (s[s.length() - 1] != '*') {
-        auto [e, b] = boost::add_edge(v, u, M->graph);
+        auto [e, added] = boost::add_edge(v, w, M->graph);
+        label[e] = j;
+      } else if (s.back() != '*') {
+        auto [e, added] = boost::add_edge(v, u, M->graph);
+        label[e] = j;
       }
-
-      label[e] = j;
     } else {
       symbol = s[0] - '0';
       if (map_bit(j, n) == symbol) {
-        auto [e, b] = boost::add_edge(v, v, M->graph);
+        auto [e, added] = boost::add_edge(v, v, M->graph);
         label[e] = j;
       }
 
       if (map_bit(j, n) == (int_type) (s[2] - '0')) {
-        auto [e, b] = boost::add_edge(v, w, M->graph);
+        auto [e, added] = boost::add_edge(v, w, M->graph);
         label[e] = j;
       } else if (map_bit(j, n) != symbol) {
-        auto [e, b] = boost::add_edge(v, u, M->graph);
+        auto [e, added] = boost::add_edge(v, u, M->graph);
         label[e] = j;
       }
     }
 
     if (s[0] != '2') {
-      auto [e, b] = boost::add_edge(u, u, M->graph);
+      auto [e, added] = boost::add_edge(u, u, M->graph);
       label[e] = j;
     }
   }
@@ -836,7 +835,7 @@ bool Cycle(int_type rule, int_type k) {
 // A one-way infinite elementary cellular automaton has a k-predecessor if and
 // only if there exist k distinct configurations x_1, ..., x_k evolving to a
 // single configuration y after one application of the global map.
-void Predecessor(int_type rule, int_type k, const std::vector<std::string>& p) {
+bool Predecessor(int_type rule, int_type k, const std::vector<std::string>& p) {
   dbg(OutputType::General, std::print("# x0 -> y\n"));
   auto M = GlobalMap(rule, k+1, {0, k});
 
@@ -856,7 +855,9 @@ void Predecessor(int_type rule, int_type k, const std::vector<std::string>& p) {
     }
   }
 
-  std::print("{:d}  ", !M->Empty());
+  auto result = !M->Empty();
+  dbg(OutputType::Quiet, std::print("Predecessor({}, {}): {}\n", rule, k, result));
+  return result;
 
   // ensure target isn't forbidden
   for (auto i = 0UL; i < p.size(); i++) {

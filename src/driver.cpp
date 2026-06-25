@@ -103,26 +103,16 @@ void classify(const std::string& filename) {
     str.erase(std::remove_if(str.begin(), str.end(), pred), str.end());
     std::print("{}\n", str);
 
-    auto itr = map.find(str);
-
-    // if the trace is not found, create a new empty list
-    if (itr == map.end()) {
-      auto [itr, added] = map.emplace(str, std::list<uint8_t>{});
-      BOOST_ASSERT(added);
-    }
+    // find the trace, inserting a new empty list if it is not present
+    auto [itr, added] = map.try_emplace(str);
 
     itr->second.push_back(rule);
   }
 
   std::print("\n\n");
   for (auto trace : map) {
-    auto itr = class_map.find(trace.second.size());
-
-    // if the size is not found, create a new empty set
-    if (itr == class_map.end()) {
-      auto [itr, added] = class_map.emplace(trace.second.size(), std::set<std::string>{});
-      BOOST_ASSERT(added);
-    }
+    // find the class for this size, inserting a new empty set if absent
+    auto [itr, added] = class_map.try_emplace(trace.second.size());
 
     itr->second.insert(trace.first);
   }

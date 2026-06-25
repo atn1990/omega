@@ -978,8 +978,7 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
   TransitionMap dfa_map;
 
   std::unordered_map<unsigned long, size_type> hash;
-  boost::dynamic_bitset<>& Q =
-    const_cast<boost::dynamic_bitset<>&>(initial_states);
+  boost::dynamic_bitset<> Q = initial_states;
   boost::dynamic_bitset<> N;
 
   std::vector<boost::dynamic_bitset<>> state_list;
@@ -997,8 +996,10 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
 
   while (!queue.empty()) {
     Q = queue.front();
+    queue.pop();
 
     auto itr = hash.find(Q.to_ulong());
+    BOOST_ASSERT(itr != hash.end());
 
     size_type index = itr->second;
 
@@ -1032,7 +1033,6 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
         dfa_map.insert({{index, i}, empty_index});
         num_empty++;
 
-        queue.pop();
         continue;
       }
 
@@ -1060,8 +1060,6 @@ std::unique_ptr<BuchiAutomaton> BuchiAutomaton::RabinScott(
         dbg(OutputType::General, std::print("# Index  {}\n\n", itr->second));
       }
     }
-
-    queue.pop();
   }
 
   // double check # trees hashed is the same as # trees indexed
@@ -1497,7 +1495,7 @@ std::unique_ptr<BuchiAutomaton> DisjointUnion(const BuchiAutomaton& A, const Buc
       label[e] = symbol;
     }
 
-    state[u] = state[u_B];
+    state[u] = state_B[u_B];
   }
 
   M->num_edges = A.num_edges + B.num_edges;
