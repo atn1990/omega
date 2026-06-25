@@ -12,9 +12,9 @@
 
 template <>
 struct std::formatter<omega::RabinPair> : std::formatter<std::string_view> {
-    auto format(const omega::RabinPair& p, format_context& ctx) const {
-        return std::format_to(ctx.out(), "L = {}\nR = {}\n", p.left, p.right);
-    }
+  auto format(const omega::RabinPair& p, format_context& ctx) const {
+    return std::format_to(ctx.out(), "L = {}\nR = {}\n", p.left, p.right);
+  }
 };
 
 namespace omega {

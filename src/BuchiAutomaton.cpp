@@ -260,8 +260,6 @@ void BuchiAutomaton::Reachable() {
 
     Clean();
   }
-
-  dbg(OutputType::Debug, Print());
 }
 
 // Project away the most significant symbol from the edges of the underlying

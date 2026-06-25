@@ -24,15 +24,28 @@
 #define ECA_ALPHABET 4
 #define ECA_INITIAL  0
 
+template <>
+struct std::formatter<omega::ShiftType> : std::formatter<std::string_view> {
+  auto format(const omega::ShiftType& s, format_context& ctx) const {
+    if (s == omega::ShiftType::Left) {
+      return std::format_to(ctx.out(), "Left");
+    } else if (s == omega::ShiftType::Right) {
+      return std::format_to(ctx.out(), "Right");
+    } else {
+      return std::format_to(ctx.out(), "Unknown");
+    }
+  }
+};
+
 namespace omega {
 
-// Print the rule table of an elementary cellular automaton.
+// Print the rule table of an elementary cellular automaton
 void RuleTable(int_type rule) {
   std::print("# RuleTable({})\n", rule);
 
   // 8 transitions in total
   for (auto i = 0U; i < DE_BRUIJN_TRANSITIONS; i++) {
-    std::print("{}{}{} = {}\n", map_bit(i, 2), map_bit(i, 1), map_bit(i, 0), map_bit(rule, i));
+    std::print("{:03b} = {}\n", i, map_bit(rule, i));
   }
 
   std::print("\n");
@@ -43,11 +56,11 @@ struct GlobalMapOpts {
   bool negated = false;
 };
 
-// Constructs a Büchi automaton that verifies the global map for a given pair of tracks.
-// rule is the ECA rule number
-// k is the number of tracks
-// pair indicates which tracks evolve under the global map
-// opts indicates some options for constructing the automaton
+// Constructs a Büchi automaton that verifies the global map for a given pair of tracks
+//   rule: the ECA rule number
+//      k: the number of tracks
+//   pair: indicates which tracks evolve under the global map
+//   opts: indicates some options for constructing the automaton
 std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pair, GlobalMapOpts opts = GlobalMapOpts()) {
   BOOST_ASSERT_MSG(pair.first < k, "Track index out of bounds");
   BOOST_ASSERT_MSG(pair.second < k, "Track index out of bounds");
@@ -74,11 +87,11 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
   auto type = boost::get(boost::vertex_name, M->graph);
   auto label = boost::get(boost::edge_name, M->graph);
 
-  // If negated == true, then full == true.
+  // If negated == true, then full == true
   BOOST_ASSERT(opts.negated ? opts.full : true);
 
-  // Crash state (omitted if opts.full == false).
-  // If opts.negated == true, then it is a final state.
+  // Crash state (omitted if opts.full == false)
+  // If opts.negated == true, then it is a final state
   graph_t::vertex_descriptor crash;
   if (opts.full) {
     crash = boost::vertex(ECA_SIZE-1, M->graph);
@@ -90,14 +103,14 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
       type[crash] = NodeType::None;
     }
 
-    // Absorbing state, so add an edge for every symbol to itself.
+    // Absorbing state, so add an edge for every symbol to itself
     for (auto i = 0UL; i < M->num_alphabet; i++) {
       auto [e, added] = boost::add_edge(crash, crash, M->graph);
       label[e] = i;
     }
   }
 
-  // Initial state.
+  // Initial state
   auto initial = boost::vertex(0, M->graph);
   type[initial] = NodeType::Initial;
   M->initial_states.set(0);
@@ -112,7 +125,7 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
     auto y2 = map_bit(i, pair.second);
 
     // The numbering of states corresponds to the binary representation of its
-    // component bits, accounting for the initial state.
+    // component bits, accounting for the initial state
     auto u = boost::vertex(compose_3(0, x2, y2) + 1, M->graph);
 
     dbg(OutputType::Debug, std::print("*  {:0{}b}  -->  [0{} {}]\n", i, width, x2, y2));
@@ -179,8 +192,8 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
   if (!opts.full) {
     M->Clean();
 
-    // Since initial states are also final.
-    // TODO: remove if changed.
+    // Since initial states are also final
+    // TODO: remove if changed
     // M->final_states.reset(0);
 
     dbg(OutputType::General, M->Print());
@@ -189,9 +202,9 @@ std::unique_ptr<BuchiAutomaton> GlobalMap(int_type rule, int_type k, int_pair pa
   return M;
 }
 
-// Construct a Büchi automaton to check if two tracks are equal.
-// k is the number of tracks
-// pair indicates which tracks should be checked for equality
+// Construct a Büchi automaton to check if two tracks are equal
+//      k: the number of tracks
+//   pair: indicates which tracks should be checked for equality
 std::unique_ptr<BuchiAutomaton> Equality(int_type k, int_pair pair) {
   BOOST_ASSERT_MSG(pair.first < k, "Track index out of bounds");
   BOOST_ASSERT_MSG(pair.second < k, "Track index out of bounds");
@@ -219,7 +232,7 @@ std::unique_ptr<BuchiAutomaton> Equality(int_type k, int_pair pair) {
   return M;
 }
 
-// Modify a Büchi automaton to ensure that two specified tracks are equal.
+// Modify a Büchi automaton to ensure that two specified tracks are equal
 void Equality(BuchiAutomaton& M, int_pair pair) {
   BOOST_ASSERT_MSG(static_cast<int_type>(std::exp2(pair.first)) < M.num_alphabet, "Track index out of bounds");
   BOOST_ASSERT_MSG(static_cast<int_type>(std::exp2(pair.second)) < M.num_alphabet, "Track index out of bounds");
@@ -241,9 +254,9 @@ void Equality(BuchiAutomaton& M, int_pair pair) {
   dbg(OutputType::General, M.Print());
 }
 
-// Specialized product construction with the inequality automaton.
+// Specialized product construction with the inequality automaton
 // The product P is two copies of M, one where the tracks have not differed,
-// and one where they have.
+// and one where they have
 std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   BOOST_ASSERT_MSG(static_cast<int_type>(std::exp2(pair.first)) < M.num_alphabet, "Track index out of bounds");
   BOOST_ASSERT_MSG(static_cast<int_type>(std::exp2(pair.second)) < M.num_alphabet, "Track index out of bounds");
@@ -356,7 +369,9 @@ std::unique_ptr<BuchiAutomaton> Inequality(BuchiAutomaton& M, int_pair pair) {
   return P;
 }
 
-// Construct a Büchi automaton to check if two tracks are not equal.
+// Construct a Büchi automaton to check if two tracks are not equal
+//      k: the number of tracks
+//   pair: indicates which tracks should be checked for inequality
 std::unique_ptr<BuchiAutomaton> Inequality(int_type k, int_pair pair) {
   auto M = std::make_unique<BuchiAutomaton>(std::exp2(k), 2);
 
@@ -392,6 +407,9 @@ std::unique_ptr<BuchiAutomaton> Inequality(int_type k, int_pair pair) {
 }
 
 // Construct a Büchi automaton to check if track is a forbidden configuration
+//   k: the number of tracks
+//   n: the number of bits per track
+//   s: the forbidden pattern
 std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::string& s) {
   auto start = 0U;
 
@@ -479,7 +497,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
         label[e] = j;
       }
 
-      if (map_bit(j, n) == (int_type) (s[2] - '0')) {
+      if (map_bit(j, n) == static_cast<int_type>(s[2] - '0')) {
         auto [e, added] = boost::add_edge(v, w, M->graph);
         label[e] = j;
       } else if (map_bit(j, n) != symbol) {
@@ -527,7 +545,7 @@ std::unique_ptr<BuchiAutomaton> Finite(int_type k, int_type n, const std::string
 
   // finite occurrence of s[1]
   for (auto j = 0UL; j < M->num_alphabet; j++) {
-    if (map_bit(j, n) != (int_type) (s[1] - '0')) {
+    if (map_bit(j, n) != static_cast<int_type>(s[1] - '0')) {
       auto [e, b] = boost::add_edge(v, v, M->graph);
       label[e] = j;
     }
@@ -556,7 +574,7 @@ std::unique_ptr<BuchiAutomaton> Finite(int_type k, int_type n, const std::string
 
   // at least one occurrence of s[1]
   for (auto j = 0UL; j < N->num_alphabet; j++) {
-    if (map_bit(j, n) != (int_type) (s[1] - '0')) {
+    if (map_bit(j, n) != static_cast<int_type>(s[1] - '0')) {
       auto [e, b] = boost::add_edge(u, u, N->graph);
       label[e] = j;
     }
@@ -578,40 +596,30 @@ std::unique_ptr<BuchiAutomaton> Finite(int_type k, int_type n, const std::string
   return Intersection(*M, *N);
 }
 
-std::string to_string(ShiftType shift) {
-  switch (shift) {
-    case ShiftType::Left:
-      return "Left";
-    case ShiftType::Right:
-      return "Right";
-  }
-}
-
-// Construct a Büchi automaton that checks if track1 is a left or right shift of track2.
-// @param k: the number of tracks
-// @param pair: a pair of indices indicating which tracks to compare
-// @param shift: a ShiftType indicating whether to perform a left or right shift
-// @param full: if true, the automaton will include a crash state that absorbs all transitions
-//              if false, the automaton will not include the crash state
-// @return: a unique pointer to the constructed Büchi automaton
-// The automaton will have 4 states if `full` is true, and 3 states otherwise.
-// The states are:
-// 0: initial state
-// 1: final state for track1
-// 2: final state for track2
-// 3: crash state (only if `full` is true)
+// Construct a Büchi automaton that checks if track1 is a left or right shift of track2
+//   @param k: the number of tracks
+//   @param pair: a pair of indices indicating which tracks to compare
+//   @param shift: a ShiftType indicating whether to perform a left or right shift
+//   @param full: if true, the automaton will include a crash state that absorbs all transitions
+//                if false, the automaton will not include the crash state
+//   @return: a unique pointer to the constructed Büchi automaton
+// The automaton will have 4 states if `full` is true, and 3 states otherwise
+//   0: initial state
+//   1: final state for track1
+//   2: final state for track2
+//   3: crash state (only if `full` is true)
 // The transitions are defined such that:
-// - From the initial state, transition to either state 1 or 2 based on the corresponding track's symbol.
-// - From state 1, transition to state 1 or 2 if the corresponding track's symbol matches the previous symbol read.
-// - If the corresponding track's symbol does not match, transition to the crash state if `full` is true.
-// - Similarly, from state 2, transition to state 1 or 2 based on the corresponding track's symbol, or to the crash state if `full` is true and the symbol does not match.
-// - The crash state absorbs all transitions, meaning any symbol will loop back to itself.
+//   - From the initial state, transition to either state 1 or 2 based on the corresponding track's symbol
+//   - From state 1, transition to state 1 or 2 if the corresponding track's symbol matches the previous symbol read
+//   - If the corresponding track's symbol does not match, transition to the crash state if `full` is true
+//   - Similarly, from state 2, transition to state 1 or 2 based on the corresponding track's symbol, or to the crash state if `full` is true and the symbol does not match
+//   - The crash state absorbs all transitions, meaning any symbol will loop back to itself
 std::unique_ptr<BuchiAutomaton> Shift(int_type k, int_pair pair, ShiftType shift, bool full = false) {
   BOOST_ASSERT_MSG(pair.first < k, "Track index out of bounds");
   BOOST_ASSERT_MSG(pair.second < k, "Track index out of bounds");
   BOOST_ASSERT_MSG(pair.first != pair.second, "Tracks must be different");
 
-  dbg(OutputType::Debug, std::print("# {}-Shift({}, {{{}, {}}})\n", to_string(shift), k, pair.first, pair.second));
+  dbg(OutputType::Debug, std::print("# {}-Shift({}, {{{}, {}}})\n", shift, k, pair.first, pair.second));
 
   auto num_states = 4;
   if (!full) {
@@ -701,7 +709,7 @@ bool Shift(int_type rule, int_type k, ShiftType shift) {
   BOOST_ASSERT_MSG(rule < 256, "Rule must be in the range [0, 255]");
   BOOST_ASSERT_MSG(k >= 1, "Parameter k must be at least 1");
 
-  dbg(OutputType::General, std::print("# Shift({}, {}, {})\n", rule, k, to_string(shift)));
+  dbg(OutputType::General, std::print("# Shift({}, {}, {})\n", rule, k, shift));
 
   GlobalMapOpts opts;
   opts.full = false;
@@ -732,9 +740,7 @@ bool Shift(int_type rule, int_type k, ShiftType shift) {
   //   std::print("{}  ", !M->Empty());
   // }
 
-  auto result = !M->Empty();
-  dbg(OutputType::Quiet, std::print("Shift({}, {}, {}): {}\n", rule, k, to_string(shift), result));
-  return result;
+  return !M->Empty();
 }
 
 // Construct a Büchi automaton to check if an ECA has a fixed-point.
@@ -754,9 +760,7 @@ bool FixedPoint(int_type rule) {
   dbg(OutputType::General, std::print("# x0 == x1\n"));
   Equality(*M, {0, 1});
 
-  auto result = !M->Empty();
-  dbg(OutputType::Quiet, std::print("FixedPoint({}): {}\n", rule, result));
-  return result;
+  return !M->Empty();
 
   // std::unique_ptr<BuchiAutomaton> N;
   // ensure fixed point isn't forbidden
@@ -825,9 +829,7 @@ bool Cycle(int_type rule, int_type k) {
     }
   }
 
-  auto result = !M->Empty();
-  dbg(OutputType::Quiet, std::print("Cycle({}, {}): {}\n", rule, k, result));
-  return result;
+  return !M->Empty();
 }
 
 // Construct a Büchi automaton to check if an ECA has a k-predecessor
@@ -835,14 +837,14 @@ bool Cycle(int_type rule, int_type k) {
 // A one-way infinite elementary cellular automaton has a k-predecessor if and
 // only if there exist k distinct configurations x_1, ..., x_k evolving to a
 // single configuration y after one application of the global map
-bool Predecessor(int_type rule, int_type k, const std::vector<std::string>& p) {
+bool Predecessor(int_type rule, int_type k) {
+  std::vector<std::string> p = {"0", "1"};
   dbg(OutputType::General, std::print("# x0 -> y\n"));
   auto M = GlobalMap(rule, k+1, {0, k});
 
-  std::unique_ptr<BuchiAutomaton> N;
   for (auto i = 1U; i < k; i++) {
     dbg(OutputType::General, std::print("# x{} -> y\n", i));
-    N = GlobalMap(rule, k+1, {i, k});
+    auto N = GlobalMap(rule, k+1, {i, k});
 
     dbg(OutputType::General, std::print("# x0, ..., x{} -> y\n", i));
     M = Intersection(*M, *N);
@@ -855,20 +857,16 @@ bool Predecessor(int_type rule, int_type k, const std::vector<std::string>& p) {
     }
   }
 
-  auto result = !M->Empty();
-  dbg(OutputType::Quiet, std::print("Predecessor({}, {}): {}\n", rule, k, result));
-  return result;
-
   // ensure target isn't forbidden
-  // for (auto i = 0UL; i < p.size(); i++) {
-  //   dbg(OutputType::General, std::print("# y != {}\n", p[i]));
-  //   N = Pattern(k+1, k, p[i]);
+  for (auto i = 0UL; i < p.size(); i++) {
+    dbg(OutputType::General, std::print("# y != {}\n", p[i]));
+    auto N = Pattern(k+1, k, p[i]);
 
-  //   dbg(OutputType::General, std::print("# [x -> y] && [y != {}]\n", p[i]));
-  //   M = Intersection(*M, *N);
+    dbg(OutputType::General, std::print("# [x -> y] && [y != {}]\n", p[i]));
+    M = Intersection(*M, *N);
+  }
 
-  //   std::print("{:d}  ", !M->Empty());
-  // }
+  return !M->Empty();
 }
 
 // A rule r is nilpotent after k applications if and only if there exists a configuration x_0 such that for all configurations u, u evolves to the same configuration y after k applications of the global map, and y is a fixed point
@@ -906,7 +904,6 @@ bool Nilpotent(int_type rule, int_type k) {
   dbg(OutputType::General, M->Print());
 
   if (M->num_vertices == 0) {
-    dbg(OutputType::Quiet, std::print("Nilpotent({}, {}): false\n", rule, k));
     return false;
   }
 
@@ -919,10 +916,7 @@ bool Nilpotent(int_type rule, int_type k) {
   // R->Minimize();
   // R->Clean();
 
-  auto result = R->Universal();
-  dbg(OutputType::Quiet, std::print("Nilpotent({}, {}): {}\n", rule, k, result));
-
-  return result;
+  return R->Universal();
 }
 
 // Construct a Büchi automaton to check if an ECA has in-degree k
@@ -997,10 +991,9 @@ bool InDegree(int_type rule, int_type k) {
   // R->Clean();
   // R->Minimize();
 
-  bool result = !R->Universal();
-  dbg(OutputType::General, std::print("InDegree({}, {}): {}\n", rule, k, result));
-  return result;
   // boost::write_graphviz(std::cout, R->graph, boost::default_writer(), make_label_writer(boost::get(boost::edge_name, R->graph)));
+
+  return !R->Universal();
 }
 
 // The global map is injective for a given rule r iff:
@@ -1027,9 +1020,7 @@ bool Injective(int_type rule) {
 
   // M->Minimize();
 
-  auto result = M->Empty();
-  dbg(OutputType::Quiet, std::print("Injective({}): {}\n", rule, result));
-  return result;
+  return M->Empty();
 }
 
 // The global map for a given rule r is surjective iff:
@@ -1055,9 +1046,7 @@ bool Surjective(int_type rule) {
   // R->Clean();
   // R->Minimize();
 
-  auto result = R->Universal();
-  dbg(OutputType::Quiet, std::print("Surjective({}): {}\n", rule, result));
-  return result;
+  return R->Universal();
 }
 
 // Generate the canonical one-step verifying automaton
@@ -1080,13 +1069,13 @@ void Canonical(int_type r) {
   B.initial_states.set(1);
   B.final_states.set();
 
-  std::print("# DE BRUIJN\n");
+  std::print("# De Bruijn\n");
   B.Print();
 
   exit(EXIT_SUCCESS);
 }
 
-// Apply the global map of a given rule for a given pattern n of width k.
+// Apply the global map of a given rule for a given pattern n of width k
 int_type Map(int_type rule, int_type n, int_type k) {
   constexpr static auto mask = 0x7U;
 
@@ -1117,7 +1106,7 @@ int_type Map(int_type rule, int_type n, int_type k) {
   return Map(rule, step, k-1);
 }
 
-// Apply the transducer for the given rule to the language accepted by M.
+// Apply the transducer for the given rule to the language accepted by M
 std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
   std::queue<int_pair> queue;
 
@@ -1207,7 +1196,7 @@ std::unique_ptr<BuchiAutomaton> Cover(int_type rule, const BuchiAutomaton& M) {
   return N;
 }
 
-// Creates a one-state Büchi automaton that accepts all configurations with an alphabet of size k.
+// Creates a one-state Büchi automaton that accepts all configurations with an alphabet of size k
 std::unique_ptr<BuchiAutomaton> Top(int_type k) {
   TransitionMap de_bruijn;
 
@@ -1226,7 +1215,7 @@ std::unique_ptr<BuchiAutomaton> Top(int_type k) {
   return B;
 }
 
-// Generates the k-cover of a global map.
+// Generates the k-cover of a global map
 void Minimal(int_type rule, int_type k) {
   auto B = Top(2);
 
@@ -1237,10 +1226,8 @@ void Minimal(int_type rule, int_type k) {
   std::print("{},", B->num_vertices);
 }
 
-/**
-  * Construct a Büchi automaton to verify a property of the specified one-way
-  * infinite elementary cellular automaton.
- **/
+// Construct a Büchi automaton to verify a property of the specified one-way
+// infinite elementary cellular automaton
 void Run(int_type r, int_type k, const std::vector<std::string>& p) {
   dbg(OutputType::Debug, {
     std::print("rule = {}\n", r);
@@ -1254,14 +1241,14 @@ void Run(int_type r, int_type k, const std::vector<std::string>& p) {
     RuleTable(r);
   });
 
-  std::print("{:d}\n", Injective(r));
-  std::print("{:d}\n", Surjective(r));
-  std::print("{:d}\n", Cycle(r, k));
-  // Predecessor(r, k, p);
-  std::print("{:d}\n", InDegree(r, k));
-  std::print("{:d}\n", Nilpotent(r, k));
-  std::print("{:d}\n", Shift(r, k, ShiftType::Left));
-  std::print("{:d}\n", Shift(r, k, ShiftType::Right));
+  std::print("Injective({}) = {}\n", r, Injective(r));
+  std::print("Surjective({}) = {}\n", r, Surjective(r));
+  std::print("Cycle({}, {}) = {}\n", r, k, Cycle(r, k));
+  std::print("Predecessor({}, {}) = {}\n", r, k, Predecessor(r, k));
+  std::print("InDegree({}, {}) = {}\n", r, k, InDegree(r, std::max(k-1, (int_type) 1)));
+  std::print("Nilpotent({}, {}) = {}\n", r, k, Nilpotent(r, k));
+  std::print("Shift({}, {}, Left) = {}\n", r, k, Shift(r, k, ShiftType::Left));
+  std::print("Shift({}, {}, Right) = {}\n", r, k, Shift(r, k, ShiftType::Right));
   // Minimal(r, k);
   // Cover(r, nullptr);
   std::print("\n");
@@ -1284,56 +1271,38 @@ void Tabulate(int_type k) {
   // z.emplace_back("01111");
 
   // for (auto i = 0; i < 256; i++) {
-  //   std::print("{:3}  ", i);
-  //   std::print("{} {} ", binary_digits(i), decimal_digits(i));
-  //   std::print("\n");
+  //   std::print("{:3}  {}  {:8b}  {}\n", i, decimal_digits(i), i, binary_digits(i));
   // }
 
   for (auto i = 0; i < 256; i++) {
     std::print("{:3}", i);
     std::print("  {:d}", Injective(i));
     std::print("  {:d}", Surjective(i));
-    // std::print("  {:d}", FixedPoint(i, y));
-    // std::print("  {:d}", FixedPoint(i, z));
-    // std::print("  {:d}", FixedPoint(i, f0));
-    // std::print("  {:d}", FixedPoint(i, f1));
-    std::print("  {:d}", Cycle(i, 1));
-    std::print("  {:d}", Cycle(i, 2));
-    std::print("  {:d}", Cycle(i, 3));
-    std::print("  {:d}", Cycle(i, 4));
-    std::print("  {:d}", Cycle(i, 5));
-    std::print("  {:d}", Cycle(i, 6));
-    // std::print("  {:d}", Cycle(i, 7));
-    // std::print("  {:d}", Cycle(i, 8));
-    // std::print("  {:d}", Cycle(i, 9));
-    std::print("  {:d}", Nilpotent(i, 1));
-    std::print("  {:d}", Nilpotent(i, 2));
-    std::print("  {:d}", Nilpotent(i, 3));
-    std::print("  {:d}", Nilpotent(i, 4));
-    // std::print("  {:d}", Nilpotent(i, 5));
-    std::print("  {:d}", InDegree(i, 1));
-    std::print("  {:d}", InDegree(i, 2));
-    std::print("  {:d}", InDegree(i, 3));
-    // Predecessor(i, 1);
-    // Predecessor(i, 2);
-    // Predecessor(i, 2, x);
-    // Predecessor(i, 3, x);
+    // for (const auto& p : {y, z, f0, f1}) {
+    //   std::print("  {:d}", FixedPoint(i, k));
+    // }
+    for (auto j = 1; j <= 6; j++) {
+      std::print("  {:d}", Cycle(i, j));
+    }
+    for (auto j = 1; j <= 4; j++) {
+      std::print("  {:d}", Nilpotent(i, j));
+    }
+    for (auto j = 1; j <= 3; j++) {
+      std::print("  {:d}", InDegree(i, j));
+    }
+    for (auto j = 1; j <= 4; j++) {
+      std::print("  {:d}", Predecessor(i, j));
+    }
     // Predecessor(i, 3, z);
-    // Predecessor(i, 4, x);
-    // Predecessor(i, 5, x);
-    std::print("  {:d}", Shift(i, 1, ShiftType::Left));
-    std::print("  {:d}", Shift(i, 2, ShiftType::Left));
-    std::print("  {:d}", Shift(i, 3, ShiftType::Left));
-    std::print("  {:d}", Shift(i, 1, ShiftType::Right));
-    std::print("  {:d}", Shift(i, 2, ShiftType::Right));
-    std::print("  {:d}", Shift(i, 3, ShiftType::Right));
-    // std::print("  {:d}", Shift(i, 3, ShiftType::Right, y));
-    // std::print("  {:d}", Shift(i, 4, ShiftType::Right, y));
-    // std::print("  {:d}", Shift(i, 5, ShiftType::Right, y));
-    // Minimal(i, 1);
-    // Minimal(i, 2);
-    // Minimal(i, 3);
-    // Minimal(i, 4);
+    for (auto j = 1; j <= 4; j++) {
+      std::print("  {:d}", Shift(i, j, ShiftType::Left));
+    }
+    for (auto j = 1; j <= 4; j++) {
+      std::print("  {:d}", Shift(i, j, ShiftType::Right));
+    }
+    // for (auto j = 1; j <= 4; j++) {
+    //   Minimal(i, j);
+    // }
     std::print("\n");
   }
 }

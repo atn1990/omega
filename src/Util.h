@@ -78,11 +78,11 @@ struct hash<std::tuple<T, U, V>> {
 
 template <>
 struct std::formatter<boost::dynamic_bitset<>> : std::formatter<std::string_view> {
-    auto format(const boost::dynamic_bitset<>& bs, format_context& ctx) const {
-      std::string str;
-      boost::to_string(bs, str);
-      return std::format_to(ctx.out(), "{}", str);
-    }
+  auto format(const boost::dynamic_bitset<>& bs, format_context& ctx) const {
+    std::string str;
+    boost::to_string(bs, str);
+    return std::format_to(ctx.out(), "{}", str);
+  }
 };
 
 namespace omega {
