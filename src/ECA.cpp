@@ -830,11 +830,11 @@ bool Cycle(int_type rule, int_type k) {
   return result;
 }
 
-// Construct a Büchi automaton to check if an ECA has a k-predecessor.
+// Construct a Büchi automaton to check if an ECA has a k-predecessor
 //
 // A one-way infinite elementary cellular automaton has a k-predecessor if and
 // only if there exist k distinct configurations x_1, ..., x_k evolving to a
-// single configuration y after one application of the global map.
+// single configuration y after one application of the global map
 bool Predecessor(int_type rule, int_type k, const std::vector<std::string>& p) {
   dbg(OutputType::General, std::print("# x0 -> y\n"));
   auto M = GlobalMap(rule, k+1, {0, k});
@@ -860,15 +860,15 @@ bool Predecessor(int_type rule, int_type k, const std::vector<std::string>& p) {
   return result;
 
   // ensure target isn't forbidden
-  for (auto i = 0UL; i < p.size(); i++) {
-    dbg(OutputType::General, std::print("# y != {}\n", p[i]));
-    N = Pattern(k+1, k, p[i]);
+  // for (auto i = 0UL; i < p.size(); i++) {
+  //   dbg(OutputType::General, std::print("# y != {}\n", p[i]));
+  //   N = Pattern(k+1, k, p[i]);
 
-    dbg(OutputType::General, std::print("# [x -> y] && [y != {}]\n", p[i]));
-    M = Intersection(*M, *N);
+  //   dbg(OutputType::General, std::print("# [x -> y] && [y != {}]\n", p[i]));
+  //   M = Intersection(*M, *N);
 
-    std::print("{:d}  ", !M->Empty());
-  }
+  //   std::print("{:d}  ", !M->Empty());
+  // }
 }
 
 // A rule r is nilpotent after k applications if and only if there exists a configuration x_0 such that for all configurations u, u evolves to the same configuration y after k applications of the global map, and y is a fixed point
