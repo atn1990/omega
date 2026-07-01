@@ -410,15 +410,31 @@ std::unique_ptr<BuchiAutomaton> Inequality(int_type k, int_pair pair) {
 //   k: the number of tracks
 //   n: the number of bits per track
 //   s: the forbidden pattern
-std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::string& s) {
+std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::string_view& s) {
   auto start = 0U;
 
   graph_t::vertex_descriptor u, v, w;
-  graph_t::edge_descriptor e;
 
   auto M = std::make_unique<BuchiAutomaton>(std::exp2(k), s.length() + 2);
   auto label = boost::get(boost::edge_name, M->graph);
   auto type = boost::get(boost::vertex_name, M->graph);
+
+  // Insert a transition once: if the vertex already has an out-edge to the
+  // same target under the same symbol, do nothing. The tail vertex before a
+  // trailing '*' is visited by both the main loop and the final block, so
+  // without this guard its self-loops would be inserted twice.
+  auto add_once = [&](graph_t::vertex_descriptor src,
+                      graph_t::vertex_descriptor tgt,
+                      int_type symbol) {
+    for (auto [itr, end] = boost::out_edges(src, M->graph); itr != end; ++itr) {
+      if (boost::target(*itr, M->graph) == tgt && label[*itr] == symbol) {
+        return;
+      }
+    }
+
+    auto [e, added] = boost::add_edge(src, tgt, M->graph);
+    label[e] = symbol;
+  };
 
   // u is the final state
   // if a configuration doesn't match the pattern, it will enter the trap state
@@ -438,7 +454,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
     type[v] = NodeType::None;
 
     if (s[i] == '*') {
-      if (i < s.length()-1) {
+      if (i+1 < s.length()) {
         i++;
         v = boost::vertex(i-2, M->graph);
         w = boost::vertex(i+1, M->graph);
@@ -450,28 +466,26 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
     for (auto j = 0U; j < M->num_alphabet; j++) {
       int_type symbol = s[i % s.length()] - '0';
       if (map_bit(j, n) == symbol) {
-        if (i < s.length()-1 && s[i+1] == '*') {
-          std::tie(e, std::ignore) = boost::add_edge(v, v, M->graph);
+        if (i+1 < s.length() && s[i+1] == '*') {
+          add_once(v, v, j);
         } else {
-          std::tie(e, std::ignore) = boost::add_edge(v, w, M->graph);
+          add_once(v, w, j);
         }
-      } else if (i < s.length()-1 && s[i+1] == '*') {
+      } else if (i+1 < s.length() && s[i+1] == '*') {
         continue;
       } else {
-        std::tie(e, std::ignore) = boost::add_edge(v, u, M->graph);
+        add_once(v, u, j);
       }
-
-      label[e] = j;
     }
   }
 
   if (s.back() != '*') {
     v = boost::vertex(s.length(), M->graph);
   } else {
-    v = boost::vertex(s.length() - 2, M->graph);
+    v = boost::vertex(s.length()-2, M->graph);
   }
 
-  if (s[start+1] != '*') {
+  if (start+1 < s.length() && s[start+1] != '*') {
     w = boost::vertex(start+1, M->graph);
   } else {
     w = boost::vertex(start+3, M->graph);
@@ -481,34 +495,29 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
 
   int_type symbol;
   for (auto j = 0UL; j < M->num_alphabet; j++) {
-    if (s[start+1] != '*') {
+    if (start+1 < s.length() && s[start+1] != '*') {
       symbol = s[start] - '0';
       if (map_bit(j, n) == symbol) {
-        auto [e, added] = boost::add_edge(v, w, M->graph);
-        label[e] = j;
+        add_once(v, w, j);
       } else if (s.back() != '*') {
-        auto [e, added] = boost::add_edge(v, u, M->graph);
-        label[e] = j;
+        add_once(v, u, j);
       }
     } else {
       symbol = s[0] - '0';
       if (map_bit(j, n) == symbol) {
-        auto [e, added] = boost::add_edge(v, v, M->graph);
-        label[e] = j;
+        add_once(v, v, j);
       }
 
-      if (map_bit(j, n) == static_cast<int_type>(s[2] - '0')) {
-        auto [e, added] = boost::add_edge(v, w, M->graph);
-        label[e] = j;
+      if (start+2 < s.length() &&
+          map_bit(j, n) == static_cast<int_type>(s[start+2] - '0')) {
+        add_once(v, w, j);
       } else if (map_bit(j, n) != symbol) {
-        auto [e, added] = boost::add_edge(v, u, M->graph);
-        label[e] = j;
+        add_once(v, u, j);
       }
     }
 
     if (s[0] != '2') {
-      auto [e, added] = boost::add_edge(u, u, M->graph);
-      label[e] = j;
+      add_once(u, u, j);
     }
   }
 
@@ -517,8 +526,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
   v = boost::vertex(start, M->graph);
   type[v] = NodeType::Initial;
 
-  dbg(OutputType::General, M->Print());
-
+  // dbg(OutputType::General, M->Print());
   M->Clean();
 
   if (s[0] != '2') {
@@ -531,7 +539,7 @@ std::unique_ptr<BuchiAutomaton> Pattern(int_type k, int_type n, const std::strin
 }
 
 // Construct a Büchi automaton that checks if a track is a finite configuration (but has at least one).
-std::unique_ptr<BuchiAutomaton> Finite(int_type k, int_type n, const std::string& s) {
+std::unique_ptr<BuchiAutomaton> Finite(int_type k, int_type n, const std::string_view& s) {
   auto num_states = 2;
   auto M = std::make_unique<BuchiAutomaton>(std::exp2(k), num_states);
   auto label = boost::get(boost::edge_name, M->graph);
@@ -838,7 +846,8 @@ bool Cycle(int_type rule, int_type k) {
 // only if there exist k distinct configurations x_1, ..., x_k evolving to a
 // single configuration y after one application of the global map
 bool Predecessor(int_type rule, int_type k) {
-  std::vector<std::string> p = {"0", "1"};
+  dbg(OutputType::General, std::print("# Predecessor({}, {})\n", rule, k));
+
   dbg(OutputType::General, std::print("# x0 -> y\n"));
   auto M = GlobalMap(rule, k+1, {0, k});
 
@@ -858,6 +867,7 @@ bool Predecessor(int_type rule, int_type k) {
   }
 
   // ensure target isn't forbidden
+  std::vector<std::string> p = {"0*", "1*"};
   for (auto i = 0UL; i < p.size(); i++) {
     dbg(OutputType::General, std::print("# y != {}\n", p[i]));
     auto N = Pattern(k+1, k, p[i]);
