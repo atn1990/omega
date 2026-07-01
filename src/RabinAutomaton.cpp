@@ -12,9 +12,9 @@
 
 template <>
 struct std::formatter<omega::RabinPair> : std::formatter<std::string_view> {
-    auto format(const omega::RabinPair& p, format_context& ctx) const {
-        return std::format_to(ctx.out(), "L = {}\nR = {}\n", p.left, p.right);
-    }
+  auto format(const omega::RabinPair& p, format_context& ctx) const {
+    return std::format_to(ctx.out(), "L = {}\nR = {}\n", p.left, p.right);
+  }
 };
 
 namespace omega {
@@ -398,8 +398,8 @@ bool RabinAutomaton::Universal() {
   };
 
   // Recursive Streett emptiness test on the set of active vertices.
-  std::function<bool(boost::dynamic_bitset<>)> non_empty =
-    [&](boost::dynamic_bitset<> active) -> bool {
+  std::function<bool(const boost::dynamic_bitset<>&)> non_empty =
+    [&](const boost::dynamic_bitset<>& active) -> bool {
     if (active.none()) {
       return false;
     }
